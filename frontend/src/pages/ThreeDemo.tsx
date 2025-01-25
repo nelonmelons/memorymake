@@ -1,40 +1,248 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { SecondaryButton } from "../components/Button";
-import { Container, pageTransition } from "../components/Container";
+import { Container, pageTransition, PageContainer } from "../components/Container";
 import ThreeScene from "../components/ThreeScene";
+import { FiMaximize2, FiZoomIn, FiZoomOut, FiFolder, FiMenu, FiX, FiBarChart2, FiMove } from 'react-icons/fi';
 
-const DemoContainer = styled.div`
+// Add interfaces for styled components
+interface ToggleSidebarButtonProps {
+  isSidebarOpen: boolean;
+}
+
+interface ViewerContainerProps {
+  isSidebarOpen: boolean;
+}
+
+interface LoadingContainerProps {
+  isLoading: boolean;
+}
+
+const DemoLayout = styled.div`
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background: #000;
+  position: relative;
+`;
+
+const Sidebar = styled(motion.div)`
+  width: 280px;
+  background: rgba(0, 0, 0, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
+  backdrop-filter: blur(10px);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
 `;
 
-const Controls = styled.div`
+const ToggleSidebarButton = styled(motion.button)<ToggleSidebarButtonProps>`
+  position: fixed;
+  top: 1rem;
+  left: ${props => props.isSidebarOpen ? '300px' : '1rem'};
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
-  gap: 1rem;
   align-items: center;
   justify-content: center;
+  color: white;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+  }
 `;
 
-const CanvasContainer = styled.div`
+const ViewerContainer = styled.div<ViewerContainerProps>`
+  flex: 1;
+  height: 100%;
   position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--bg-secondary);
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  height: 600px;
+  background: #000;
+  margin-left: ${props => props.isSidebarOpen ? '280px' : '0'};
+  transition: margin-left 0.3s ease;
+  
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+`;
 
-  &:fullscreen {
-    padding: 0;
-    margin: 0;
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    background: var(--bg-primary);
+const NavButton = styled(motion.button)`
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+
+  svg {
+    font-size: 1.2rem;
+    opacity: 0.8;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+  }
+`;
+
+const NavSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const SectionTitle = styled.h3`
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+`;
+
+const ZoomControls = styled(motion.div)`
+  display: flex;
+  gap: 0.5rem;
+  
+  button {
+    flex: 1;
+    padding: 0.75rem;
+  }
+`;
+
+const buttonVariants = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0 },
+  hover: { scale: 1.02 },
+  tap: { scale: 0.98 }
+};
+
+const LoadingContainer = styled.div<LoadingContainerProps>`
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: ${props => props.isLoading ? 1 : 0};
+  transition: opacity 0.5s ease;
+`;
+
+const LoadingBar = styled.div<{ progress: number }>`
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${props => props.progress}%;
+    background: linear-gradient(
+      90deg,
+      #ff00ff,
+      #00ffff
+    );
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    transition: width 0.3s ease;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+`;
+
+const LoadingText = styled.div`
+  color: white;
+  font-size: 0.875rem;
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+`;
+
+const ZoomSlider = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0 0.5rem;
+  margin: 0 -0.5rem;
+  max-width: calc(100% + 1rem);
+
+  input[type="range"] {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    -webkit-appearance: none;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    }
+
+    &::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  span {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.8rem;
+    min-width: 2.5rem;
+    text-align: center;
   }
 `;
 
@@ -46,7 +254,7 @@ const StatusText = styled.div`
   background: rgba(0, 0, 0, 0.7);
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  color: var(--text-primary);
+  color: white;
   font-size: 0.875rem;
   pointer-events: none;
   opacity: 0;
@@ -57,127 +265,122 @@ const StatusText = styled.div`
   }
 `;
 
-const LoadingBar = styled.div<{ progress: number }>`
+const UploadContainer = styled.div<{ isVisible: boolean }>`
   position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-  opacity: ${props => props.progress < 100 ? 1 : 0};
-  transition: opacity 0.3s ease;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: ${props => props.progress}%;
-    background: linear-gradient(
-      90deg,
-      var(--accent-primary),
-      var(--accent-secondary)
-    );
-    transition: width 0.3s ease;
-  }
-`;
-
-const StyledPageContainer = styled(motion.div)`
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: ${props => props.isVisible ? 'flex' : 'none'};
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-`;
-
-// Add interfaces for styled components
-interface UploadContainerProps {
-  isVisible: boolean;
-}
-
-const UploadContainer = styled.div<UploadContainerProps>`
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.85);
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid #ff00ff40;
-  box-shadow: 0 0 20px #ff00ff20, inset 0 0 10px #ff00ff10;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  max-width: 400px;
-  width: 90%;
-  z-index: 10;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  opacity: ${props => props.isVisible ? 1 : 0};
-  pointer-events: ${props => props.isVisible ? 'auto' : 'none'};
+  gap: 1rem;
 `;
 
 const TextInput = styled.input`
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid #ff00ff30;
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  color: #fff;
-  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
   width: 100%;
-  transition: all 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: #ff00ff;
-    box-shadow: 0 0 10px #ff00ff40;
-  }
-  
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
 `;
 
 const FileUploadButton = styled.label`
-  background: linear-gradient(45deg, #ff00ff40, #00ffff40);
-  border: 1px solid #ff00ff60;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   padding: 0.75rem 1rem;
-  color: #fff;
-  font-size: 0.9rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
   cursor: pointer;
-  text-align: center;
   transition: all 0.3s ease;
-  
-  &:hover {
-    background: linear-gradient(45deg, #ff00ff60, #00ffff60);
-    box-shadow: 0 0 15px #ff00ff30;
-  }
-  
+
   input {
     display: none;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 `;
 
 const SubmitButton = styled(motion.button)`
-  background: linear-gradient(45deg, #ff00ff, #00ffff);
-  border: none;
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  color: #fff;
-  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  width: 100%;
   cursor: pointer;
   transition: all 0.3s ease;
-  
+
   &:hover {
-    box-shadow: 0 0 20px #ff00ff50;
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+  }
+`;
+
+const DashboardSection = styled.div`
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 1rem;
+`;
+
+const Stat = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const StatLabel = styled.span`
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+`;
+
+const StatValue = styled.span`
+  color: white;
+  font-weight: 500;
+`;
+
+const HistoryList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+`;
+
+const HistoryItem = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 `;
 
@@ -190,6 +393,15 @@ const ThreeDemo: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(1);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isPanning, setIsPanning] = useState(false);
+  const [recentModels] = useState([
+    { name: 'Living Room Panorama', date: '2024-01-27' },
+    { name: 'Kitchen View', date: '2024-01-26' },
+    { name: 'Bedroom Scene', date: '2024-01-25' },
+  ]);
 
   const clearStatusTimeout = () => {
     if (statusTimeoutRef.current) {
@@ -228,10 +440,17 @@ const ThreeDemo: React.FC = () => {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen();
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
     } else {
       document.exitFullscreen();
+      setIsFullscreen(false);
     }
+  };
+
+  const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newZoom = parseFloat(e.target.value);
+    setCurrentZoom(newZoom);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,6 +484,10 @@ const ThreeDemo: React.FC = () => {
     }
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -273,58 +496,157 @@ const ThreeDemo: React.FC = () => {
   }, []);
 
   return (
-    <StyledPageContainer
+    <PageContainer
       initial="initial"
       animate="animate"
       exit="exit"
       variants={pageTransition}
     >
-      <Container>
-        <DemoContainer>
-          <Controls>
-            <SecondaryButton onClick={toggleFullscreen}>
-              Toggle Fullscreen
-            </SecondaryButton>
-          </Controls>
+      <DemoLayout>
+        <ToggleSidebarButton
+          onClick={toggleSidebar}
+          isSidebarOpen={isSidebarOpen}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          {isSidebarOpen ? <FiX /> : <FiMenu />}
+        </ToggleSidebarButton>
 
-          <CanvasContainer ref={containerRef}>
-            <ThreeScene 
-              objUrl="/models/denauny_panorama.obj"
-              onLoadProgress={handleLoadProgress}
-              onLoadError={handleLoadError}
-              onLoadComplete={handleLoadComplete}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <Sidebar
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.3 }}
+            >
+              <NavSection>
+                <SectionTitle>View Controls</SectionTitle>
+                <NavButton
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  onClick={toggleFullscreen}
+                >
+                  <FiMaximize2 /> Toggle Fullscreen
+                </NavButton>
+
+                <NavButton 
+                  variants={buttonVariants} 
+                  whileHover="hover" 
+                  whileTap="tap"
+                  onClick={() => setIsPanning(!isPanning)}
+                  style={{
+                    background: isPanning ? 'rgba(255, 0, 255, 0.2)' : undefined,
+                    borderColor: isPanning ? 'rgba(255, 0, 255, 0.4)' : undefined
+                  }}
+                >
+                  <FiMove /> {isPanning ? 'Exit Pan Mode' : 'Enter Pan Mode'}
+                </NavButton>
+                
+                <NavSection>
+                  <SectionTitle>Zoom Level</SectionTitle>
+                  <ZoomSlider>
+                    <span>0.5x</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.5"
+                      step="0.1"
+                      value={currentZoom}
+                      onChange={handleZoomChange}
+                    />
+                    <span>2.5x</span>
+                  </ZoomSlider>
+                </NavSection>
+              </NavSection>
+
+              <NavSection>
+                <SectionTitle>Recent Models</SectionTitle>
+                <HistoryList>
+                  {recentModels.map((model, index) => (
+                    <HistoryItem
+                      key={index}
+                      whileHover={{ x: 5 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <FiFolder />
+                      <div>
+                        <div style={{ fontSize: '0.9rem' }}>{model.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>
+                          {model.date}
+                        </div>
+                      </div>
+                    </HistoryItem>
+                  ))}
+                </HistoryList>
+              </NavSection>
+
+              <DashboardSection>
+                <SectionTitle>Statistics</SectionTitle>
+                <Stat>
+                  <StatLabel>Vertices</StatLabel>
+                  <StatValue>124,532</StatValue>
+                </Stat>
+                <Stat>
+                  <StatLabel>Faces</StatLabel>
+                  <StatValue>248,964</StatValue>
+                </Stat>
+                <Stat>
+                  <StatLabel>Resolution</StatLabel>
+                  <StatValue>2048x1024</StatValue>
+                </Stat>
+                <Stat>
+                  <StatLabel>File Size</StatLabel>
+                  <StatValue>15.4 MB</StatValue>
+                </Stat>
+              </DashboardSection>
+            </Sidebar>
+          )}
+        </AnimatePresence>
+
+        <ViewerContainer isSidebarOpen={isSidebarOpen}>
+          <ThreeScene 
+            objUrl="/models/denauny_panorama.obj"
+            onLoadProgress={handleLoadProgress}
+            onLoadError={handleLoadError}
+            onLoadComplete={handleLoadComplete}
+            zoom={currentZoom}
+            isPanning={isPanning}
+          />
+          <UploadContainer isVisible={showUpload}>
+            <TextInput
+              type="text"
+              placeholder="Give us your imagination..."
+              value={imagination}
+              onChange={(e) => setImagination(e.target.value)}
             />
-            <UploadContainer isVisible={showUpload}>
-              <TextInput
-                type="text"
-                placeholder="Give us your imagination..."
-                value={imagination}
-                onChange={(e) => setImagination(e.target.value)}
+            <FileUploadButton>
+              {selectedFile ? selectedFile.name : 'Choose an image'}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
               />
-              <FileUploadButton>
-                {selectedFile ? selectedFile.name : 'Choose an image'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-              </FileUploadButton>
-              <SubmitButton
-                onClick={handleSubmit}
-                disabled={!selectedFile || isLoading}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLoading ? 'Uploading...' : 'Transform'}
-              </SubmitButton>
-            </UploadContainer>
-            <StatusText className={status ? "visible" : ""}>
-              {status}
-            </StatusText>
+            </FileUploadButton>
+            <SubmitButton
+              onClick={handleSubmit}
+              disabled={!selectedFile || isLoading}
+              whileTap={{ scale: 0.98 }}
+            >
+              {isLoading ? 'Uploading...' : 'Transform'}
+            </SubmitButton>
+          </UploadContainer>
+          <StatusText className={status ? "visible" : ""}>
+            {status}
+          </StatusText>
+          <LoadingContainer isLoading={isLoading}>
             <LoadingBar progress={loadingProgress} />
-          </CanvasContainer>
-        </DemoContainer>
-      </Container>
-    </StyledPageContainer>
+            <LoadingText>Loading Model... {Math.round(loadingProgress)}%</LoadingText>
+          </LoadingContainer>
+        </ViewerContainer>
+      </DemoLayout>
+    </PageContainer>
   );
 };
 

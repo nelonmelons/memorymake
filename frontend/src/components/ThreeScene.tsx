@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
@@ -37,13 +37,17 @@ interface ThreeSceneProps {
   onLoadProgress?: (progress: number) => void;
   onLoadError?: (error: string) => void;
   onLoadComplete?: () => void;
+  zoom?: number;
+  isPanning?: boolean;
 }
 
 const ThreeScene: React.FC<ThreeSceneProps> = ({
   objUrl,
   onLoadProgress,
   onLoadError,
-  onLoadComplete
+  onLoadComplete,
+  zoom = 1,
+  isPanning = false
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
@@ -54,6 +58,10 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
   const animationFrameRef = useRef<number>();
   const loadingRef = useRef<boolean>(false);
   const currentUrlRef = useRef<string>('');
+
+  // Add keyboard control state
+  const [keys, setKeys] = useState({ w: false, a: false, s: false, d: false });
+  const panSpeed = 50; // Adjust this value to control pan speed
 
   // Load model function
   const loadModel = (path: string) => {
@@ -197,16 +205,22 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
     // Enhanced controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    controls.rotateSpeed = 0.5;
+    controls.dampingFactor = 0.1;
+    controls.screenSpacePanning = true;
+    controls.rotateSpeed = 0.8;
     controls.enableZoom = true;
-    controls.minDistance = 0.1;
-    controls.maxDistance = 2000; // Increased for better zoom out
-    controls.enablePan = false;
+    controls.minDistance = 1;
+    controls.maxDistance = 1000;
+    controls.panSpeed = 1.0;
+    controls.enablePan = true;
     controls.autoRotate = false;
     controls.maxPolarAngle = Math.PI * 0.85;
     controls.minPolarAngle = Math.PI * 0.15;
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
     controls.target.set(0, 0, -10);
     controlsRef.current = controls;
 
@@ -276,6 +290,14 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
       
       if (controlsRef.current) {
         controlsRef.current.update();
+
+        // Handle keyboard panning
+        if (isPanning && cameraRef.current) {
+          if (keys.w) cameraRef.current.position.z -= panSpeed;
+          if (keys.s) cameraRef.current.position.z += panSpeed;
+          if (keys.a) cameraRef.current.position.x -= panSpeed;
+          if (keys.d) cameraRef.current.position.x += panSpeed;
+        }
       }
       
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
@@ -311,7 +333,64 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
         }
       }
     };
-  }, [objUrl]);
+  }, [objUrl, isPanning]);
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.enablePan = isPanning;
+      controlsRef.current.enableRotate = !isPanning;
+      controlsRef.current.screenSpacePanning = true;
+      
+      if (isPanning) {
+        controlsRef.current.mouseButtons = {
+          LEFT: THREE.MOUSE.PAN,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.ROTATE
+        };
+      } else {
+        controlsRef.current.mouseButtons = {
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN
+        };
+      }
+      
+      controlsRef.current.update();
+    }
+  }, [isPanning]);
+
+  useEffect(() => {
+    if (cameraRef.current) {
+      cameraRef.current.zoom = zoom;
+      cameraRef.current.updateProjectionMatrix();
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPanning) return;
+      
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        setKeys(prev => ({ ...prev, [key]: true }));
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        setKeys(prev => ({ ...prev, [key]: false }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPanning]);
 
   return <Canvas ref={canvasRef} />;
 };
