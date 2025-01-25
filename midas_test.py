@@ -69,6 +69,22 @@ def save_depth_map_as_png(depth_map, output_path="depth_map_test.png"):
     plt.imsave(output_path, depth_map_uint8, cmap='plasma')
     return output_path
 
+def save_depth_values_as_image(depth_array, output_path="panorama_depth.png"):
+    """
+    Save depth information in an image format preserving the original values.
+    
+    Args:
+        depth_array (numpy.ndarray): Depth values (2D array).
+        output_path (str): Path to save the image.
+    """
+    # Convert the array to 16-bit to preserve precision (scaled by 1 to avoid changes)
+    print(depth_array)
+    depth_array_16bit = depth_array.astype(np.uint16)
+    
+    # Save as a 16-bit PNG
+    cv2.imwrite(output_path, depth_array_16bit)
+    return output_path
+
 def estimate_depth(midas, transform, image, device):
     """
     Estimates the depth map of an image using MiDaS.
@@ -95,8 +111,8 @@ def estimate_depth(midas, transform, image, device):
         align_corners=False,
     ).squeeze()
     
-    depth_map = prediction.cpu().numpy() * 100
-    print(depth_map)
+    depth_map = prediction.cpu().numpy() 
+
     
     # Normalize the depth map for visualization
     depth_min = depth_map.min()
@@ -191,12 +207,8 @@ def visualize_depth_map(depth_map_normalized):
     """
     # Save as grayscale image
     
-    depth_map_grayscale = (depth_map_normalized * 255).astype(np.uint8)
-    cv2.imwrite('depth_map_grayscale.png', depth_map_grayscale)
-    print("Grayscale depth map saved as 'depth_map_grayscale.png'.")
-
-    # Visualize with color
     plt.imshow(depth_map_normalized, cmap='plasma')
+    plt.savefig("depth_map_dog.png")
     plt.colorbar()
     plt.title("Normalized Depth Map (Colormapped)")
     plt.show()
@@ -221,7 +233,8 @@ def main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path=
     midas.to(device)
     print("MiDaS model loaded with local weights.")
 
-
+    # url, filename = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
+    # request.urlretrieve(url, filename)
     # Read the image
     image = cv2.imread(input_image_path)
     if image is None:
@@ -235,11 +248,12 @@ def main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path=
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
     print(f'Depth map estimated with shape {depth_map.shape}.')
-    save_depth_map_as_png(depth_map_normalized)
+    # save_depth_map_as_png(depth_map_normalized)
+    save_depth_values_as_image(depth_map)
 
     # Optional: Visualize depth map
 
-    # visualize_depth_map(depth_map_normalized)
+    visualize_depth_map(depth_map_normalized)
     # image_np = np.array(image)
     # # Create point cloud
     # pcd = create_point_cloud(image_np, depth_map)
