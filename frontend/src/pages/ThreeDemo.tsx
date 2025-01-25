@@ -96,10 +96,98 @@ const StyledPageContainer = styled(motion.div)`
   padding: 2rem;
 `;
 
+// Add interfaces for styled components
+interface UploadContainerProps {
+  isVisible: boolean;
+}
+
+const UploadContainer = styled.div<UploadContainerProps>`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.85);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #ff00ff40;
+  box-shadow: 0 0 20px #ff00ff20, inset 0 0 10px #ff00ff10;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  opacity: ${props => props.isVisible ? 1 : 0};
+  pointer-events: ${props => props.isVisible ? 'auto' : 'none'};
+`;
+
+const TextInput = styled.input`
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #ff00ff30;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-size: 0.9rem;
+  width: 100%;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #ff00ff;
+    box-shadow: 0 0 10px #ff00ff40;
+  }
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+`;
+
+const FileUploadButton = styled.label`
+  background: linear-gradient(45deg, #ff00ff40, #00ffff40);
+  border: 1px solid #ff00ff60;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: linear-gradient(45deg, #ff00ff60, #00ffff60);
+    box-shadow: 0 0 15px #ff00ff30;
+  }
+  
+  input {
+    display: none;
+  }
+`;
+
+const SubmitButton = styled(motion.button)`
+  background: linear-gradient(45deg, #ff00ff, #00ffff);
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 0 20px #ff00ff50;
+    transform: translateY(-1px);
+  }
+`;
+
 const ThreeDemo: React.FC = () => {
   const [status, setStatus] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUpload, setShowUpload] = useState(true);
+  const [imagination, setImagination] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
 
@@ -146,6 +234,37 @@ const ThreeDemo: React.FC = () => {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedFile) return;
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('imagination', imagination);
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch('http://localhost:8000/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error('Upload failed');
+      
+      setShowUpload(false);
+      setStatusWithTimeout('Upload successful! Processing your image...');
+    } catch (error) {
+      setStatusWithTimeout('Upload failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -175,6 +294,29 @@ const ThreeDemo: React.FC = () => {
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
             />
+            <UploadContainer isVisible={showUpload}>
+              <TextInput
+                type="text"
+                placeholder="Give us your imagination..."
+                value={imagination}
+                onChange={(e) => setImagination(e.target.value)}
+              />
+              <FileUploadButton>
+                {selectedFile ? selectedFile.name : 'Choose an image'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </FileUploadButton>
+              <SubmitButton
+                onClick={handleSubmit}
+                disabled={!selectedFile || isLoading}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isLoading ? 'Uploading...' : 'Transform'}
+              </SubmitButton>
+            </UploadContainer>
             <StatusText className={status ? "visible" : ""}>
               {status}
             </StatusText>
