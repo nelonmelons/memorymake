@@ -19,3 +19,6 @@ yarn-error.log
 dist/
 .DS_Store
 /models
+
+output_poisson.ply
+output_poisson_colored.ply
