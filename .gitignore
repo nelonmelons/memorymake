@@ -30,3 +30,4 @@ dist/
 *.ply
 output_mesh/
 **/output_mesh/
+*.obj

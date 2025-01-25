@@ -602,6 +602,8 @@ const LandingPage: React.FC = () => {
         method: 'POST',
         body: formData,
       });
+
+      
       
       if (!response.ok) throw new Error('Upload failed');
       

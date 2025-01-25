@@ -607,7 +607,7 @@ const ThreeDemo: React.FC = () => {
 
         <ViewerContainer isSidebarOpen={isSidebarOpen}>
           <ThreeScene 
-            objUrl="/models/denauny_panorama.obj"
+            objUrl='\models\scene.obj' // place holder right now
             onLoadProgress={handleLoadProgress}
             onLoadError={handleLoadError}
             onLoadComplete={handleLoadComplete}
