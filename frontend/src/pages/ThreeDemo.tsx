@@ -1,9 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import styled from '@emotion/styled';
-import { motion } from 'framer-motion';
-import { SecondaryButton } from '../components/Button';
-import { Container, pageTransition } from '../components/Container';
-import ThreeScene from '../components/ThreeScene';
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import styled from "@emotion/styled";
+import { motion } from "framer-motion";
+import { SecondaryButton } from "../components/Button";
+import { Container, pageTransition } from "../components/Container";
+import ThreeScene from "../components/ThreeScene";
 
 const DemoContainer = styled.div`
   display: flex;
@@ -26,7 +26,7 @@ const CanvasContainer = styled.div`
   display: flex;
   justify-content: center;
   min-height: 600px;
-  
+
   &:fullscreen {
     padding: 0;
     width: 100vw;
@@ -48,7 +48,7 @@ const StatusText = styled.div`
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  
+
   &.visible {
     opacity: 1;
   }
@@ -65,7 +65,7 @@ const StyledPageContainer = styled(motion.div)`
 `;
 
 const ThreeDemo: React.FC = () => {
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
@@ -82,16 +82,19 @@ const ThreeDemo: React.FC = () => {
     setStatus(message);
     if (duration > 0) {
       statusTimeoutRef.current = window.setTimeout(() => {
-        setStatus('');
+        setStatus("");
         statusTimeoutRef.current = undefined;
       }, duration);
     }
   };
 
-  const handleLoadProgress = useCallback((progress: number) => {
-    if (!isLoading) return;
-    setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
-  }, [isLoading]);
+  const handleLoadProgress = useCallback(
+    (progress: number) => {
+      if (!isLoading) return;
+      setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
+    },
+    [isLoading]
+  );
 
   const handleLoadError = useCallback((error: string) => {
     setIsLoading(false);
@@ -100,7 +103,7 @@ const ThreeDemo: React.FC = () => {
 
   const handleLoadComplete = useCallback(() => {
     setIsLoading(false);
-    setStatusWithTimeout('Model loaded successfully');
+    setStatusWithTimeout("Model loaded successfully");
   }, []);
 
   const toggleFullscreen = () => {
@@ -132,15 +135,15 @@ const ThreeDemo: React.FC = () => {
               Toggle Fullscreen
             </SecondaryButton>
           </Controls>
-          
+
           <CanvasContainer ref={containerRef}>
-            <ThreeScene 
-              objUrl="/models/output_mesh.obj"
+            <ThreeScene
+              objUrl="/models/output_poisson_colored.obj"
               onLoadProgress={handleLoadProgress}
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
             />
-            <StatusText className={status ? 'visible' : ''}>
+            <StatusText className={status ? "visible" : ""}>
               {status}
             </StatusText>
           </CanvasContainer>
@@ -150,4 +153,4 @@ const ThreeDemo: React.FC = () => {
   );
 };
 
-export default ThreeDemo; 
+export default ThreeDemo;
