@@ -6,7 +6,7 @@ import styled from '@emotion/styled';
 
 const Canvas = styled.div`
   width: 100%;
-  height: 600px;
+  height: 100%;
   background: var(--bg-secondary);
   border-radius: 12px;
   overflow: hidden;
@@ -15,12 +15,25 @@ const Canvas = styled.div`
   canvas {
     width: 100% !important;
     height: 100% !important;
+    display: block; /* Prevent any extra spacing */
+  }
+
+  &:fullscreen {
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--bg-primary);
+    width: 100vw;
+    height: 100vh;
+    
+    canvas {
+      width: 100vw !important;
+      height: 100vh !important;
+    }
   }
 `;
 
 interface ThreeSceneProps {
   objUrl?: string;
-  localObjPath?: string;
   onLoadProgress?: (progress: number) => void;
   onLoadError?: (error: string) => void;
   onLoadComplete?: () => void;
@@ -28,7 +41,6 @@ interface ThreeSceneProps {
 
 const ThreeScene: React.FC<ThreeSceneProps> = ({
   objUrl,
-  localObjPath,
   onLoadProgress,
   onLoadError,
   onLoadComplete
@@ -63,8 +75,8 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = 2000.0 / maxDim; // MUCH larger scale
           
-          // Position the object EXTREMELY close to the camera
-          object.position.set(100, 120, 80); // Ultra close to camera (changed from -10 to -2)
+          // Position the object for optimal viewing
+          object.position.set(100, 100, -100);
           object.scale.multiplyScalar(scale);
 
           // Flip normals and rotate for correct orientation
@@ -72,18 +84,21 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
             if (child instanceof THREE.Mesh) {
               if (child.geometry) {
                 // Scale to create wrap-around effect
-                child.geometry.scale(1, -1, 1); // Invert X to create inside-out view
-                child.geometry = child.geometry.toNonIndexed(); // Allow for better normal manipulation
+                child.geometry.scale(1, -1, 1);
+                child.geometry = child.geometry.toNonIndexed();
+                child.geometry.computeVertexNormals(); // Enhance lighting quality
               }
               if (!child.material) {
                 child.material = new THREE.MeshStandardMaterial({
                   color: 0xffffff,
-                  metalness: 0.0,
+                  metalness: 0.15,
                   roughness: 0.5,
-                  side: THREE.BackSide // Render inside of geometry
+                  side: THREE.BackSide,
+                  envMapIntensity: 1.0,
+                  flatShading: false
                 });
               } else if (child.material instanceof THREE.Material) {
-                child.material.side = THREE.BackSide; // Render inside of geometry
+                child.material.side = THREE.BackSide;
               }
             }
           });
@@ -129,59 +144,115 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
     scene.background = new THREE.Color(0x1a1a1a);
     sceneRef.current = scene;
 
-    // Camera setup
+    // Add floor and ceiling
+    const floorGeometry = new THREE.CircleGeometry(2000, 32);
+    const ceilingGeometry = new THREE.CircleGeometry(2000, 32);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      roughness: 0.9,
+      metalness: 0.1,
+      side: THREE.DoubleSide
+    });
+
+    const floor = new THREE.Mesh(floorGeometry, groundMaterial);
+    floor.receiveShadow = true;
+    floor.rotation.x = Math.PI / 2;
+    floor.position.y = -1000;
+    scene.add(floor);
+
+    const ceiling = new THREE.Mesh(ceilingGeometry, groundMaterial);
+    ceiling.receiveShadow = true;
+    ceiling.rotation.x = -Math.PI / 2;
+    ceiling.position.y = 1000;
+    scene.add(ceiling);
+
+    // Camera setup with enhanced settings
     const camera = new THREE.PerspectiveCamera(
-      100, // Reduced FOV to minimize distortion (from 120)
+      75, // Balanced FOV for better perspective
       canvasRef.current.clientWidth / canvasRef.current.clientHeight,
-      0.01,
-      20000
+      0.1,
+      5000 // Increased far plane for better zoom out
     );
     camera.position.set(0, 0, 0);
     cameraRef.current = camera;
 
-    // Renderer setup
+    // Enhanced renderer setup
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
-      alpha: true 
+      alpha: true,
+      powerPreference: 'high-performance',
+      stencil: false
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
     renderer.setClearColor(0x1a1a1a, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvasRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls setup for spherical viewing
+    // Enhanced controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = false;
-    controls.rotateSpeed = 0.3; // Slower rotation for more precise control
+    controls.rotateSpeed = 0.5;
     controls.enableZoom = true;
     controls.minDistance = 0.1;
-    controls.maxDistance = 3;
+    controls.maxDistance = 2000; // Increased for better zoom out
     controls.enablePan = false;
     controls.autoRotate = false;
-    controls.maxPolarAngle = Math.PI * 0.75; // Reduced vertical rotation range
-    controls.minPolarAngle = Math.PI * 0.25;
-    controls.maxAzimuthAngle = Math.PI * 0.75; // Reduced horizontal rotation range
-    controls.minAzimuthAngle = -Math.PI * 0.75;
-    controls.target.set(0, 0, -10); // Match ultra-close object position
+    controls.maxPolarAngle = Math.PI * 0.85;
+    controls.minPolarAngle = Math.PI * 0.15;
+    controls.target.set(0, 0, -10);
     controlsRef.current = controls;
 
-    // Simple lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+    // Enhanced lighting setup with shadows
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    mainLight.position.set(5, 8, 5);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.near = 0.1;
+    mainLight.shadow.camera.far = 5000;
+    mainLight.shadow.bias = -0.001;
+    scene.add(mainLight);
 
-    // Load model if URL or path is provided
+    // Adjusted rim lights for depth
+    const rimLight1 = new THREE.DirectionalLight(0xffffff, 0.6);
+    rimLight1.position.set(-8, 5, -5);
+    rimLight1.castShadow = true;
+    scene.add(rimLight1);
+
+    const rimLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    rimLight2.position.set(8, -5, -5);
+    rimLight2.castShadow = true;
+    scene.add(rimLight2);
+
+    // Brighter fill light
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(0, 0, 8);
+    fillLight.castShadow = true;
+    scene.add(fillLight);
+
+    // Brighter colored accent lights
+    const blueLight = new THREE.PointLight(0x4477ff, 0.5);
+    blueLight.position.set(-10, 0, 5);
+    scene.add(blueLight);
+
+    const purpleLight = new THREE.PointLight(0xff44ff, 0.4);
+    purpleLight.position.set(10, 0, 5);
+    scene.add(purpleLight);
+
+    // Load model if URL is provided
     if (objUrl) {
       loadModel(objUrl);
-    } else if (localObjPath) {
-      loadModel(localObjPath);
     }
 
     // Handle resize
@@ -240,7 +311,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
         }
       }
     };
-  }, [objUrl, localObjPath]);
+  }, [objUrl]);
 
   return <Canvas ref={canvasRef} />;
 };

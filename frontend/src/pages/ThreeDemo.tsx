@@ -25,13 +25,16 @@ const CanvasContainer = styled.div`
   background: var(--bg-secondary);
   display: flex;
   justify-content: center;
-  min-height: 600px;
+  width: 100%;
+  height: 600px;
 
   &:fullscreen {
     padding: 0;
+    margin: 0;
     width: 100vw;
     height: 100vh;
     border-radius: 0;
+    background: var(--bg-primary);
   }
 `;
 
@@ -97,7 +100,6 @@ const ThreeDemo: React.FC = () => {
   const [status, setStatus] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [renderMode, setRenderMode] = useState<'processed' | 'raw'>('processed');
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
 
@@ -164,15 +166,11 @@ const ThreeDemo: React.FC = () => {
             <SecondaryButton onClick={toggleFullscreen}>
               Toggle Fullscreen
             </SecondaryButton>
-            <SecondaryButton onClick={() => setRenderMode(mode => mode === 'processed' ? 'raw' : 'processed')}>
-              Switch to {renderMode === 'processed' ? 'Raw' : 'Processed'} OBJ
-            </SecondaryButton>
           </Controls>
 
           <CanvasContainer ref={containerRef}>
             <ThreeScene 
-              objUrl={renderMode === 'processed' ? "/models/denauny_panorama.obj" : undefined}
-              localObjPath={renderMode === 'raw' ? "/models/panorama_mesh.obj" : undefined}
+              objUrl="/models/denauny_panorama.obj"
               onLoadProgress={handleLoadProgress}
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
