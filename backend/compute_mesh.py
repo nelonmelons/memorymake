@@ -5,6 +5,8 @@ import cv2
 def depth_map_to_point_cloud(depth_image_path, intrinsic_matrix, rgb_image_path = None):
     # Load the depth image
     depth_image = o3d.io.read_image(depth_image_path)
+    depth_image_np = np.array(depth_image)
+    print(depth_image_np)
     
     # Extract the intrinsic parameters from the matrix
     fx = intrinsic_matrix[0, 0]  # fx
@@ -84,7 +86,7 @@ def point_cloud_to_mesh(point_cloud, smooth=True, decimate=False):
     #     point_cloud, o3d.utility.DoubleVector(radii))
 
     if smooth:
-        mesh = mesh.filter_smooth_laplacian(number_of_iterations=10)
+        mesh = mesh.filter_smooth_laplacian(number_of_iterations=8)
 
     if decimate:
         mesh = mesh.simplify_quadric_decimation(100000)
@@ -121,9 +123,9 @@ def depth_image_to_mesh(depth_image_path,
 
 if __name__ == "__main__":
     # Example usage:
-    depth_image_path = '00000_colors.png'
-    rgb_image_path = '00000_depth.png'
-    output_mesh_path = 'rendered_files/dog_mesh.obj'
+    depth_image_path = 'osaka_depth.png'
+    rgb_image_path = 'osakatest.png'
+    output_mesh_path = 'rendered_files/output_mesh.obj'
 
     intrinsic_matrix = np.array([
         [500, 0, 320],
