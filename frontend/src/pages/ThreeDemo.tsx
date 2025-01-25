@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
-import { Button, SecondaryButton } from '../components/Button';
-import { Container, PageContainer, pageTransition } from '../components/Container';
+import { SecondaryButton } from '../components/Button';
+import { Container, pageTransition } from '../components/Container';
 import ThreeScene from '../components/ThreeScene';
 
 const DemoContainer = styled.div`
@@ -16,20 +16,6 @@ const Controls = styled.div`
   gap: 1rem;
   align-items: center;
   justify-content: center;
-`;
-
-const Input = styled.input`
-  background: var(--bg-secondary);
-  border: 1px solid var(--text-secondary);
-  border-radius: 6px;
-  padding: 0.75rem;
-  color: var(--text-primary);
-  width: 300px;
-  
-  &:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-  }
 `;
 
 const CanvasContainer = styled.div`
@@ -79,8 +65,6 @@ const StyledPageContainer = styled(motion.div)`
 `;
 
 const ThreeDemo: React.FC = () => {
-  const [objUrl, setObjUrl] = useState('');
-  const [loadedUrl, setLoadedUrl] = useState('');
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,14 +88,6 @@ const ThreeDemo: React.FC = () => {
     }
   };
 
-  const handleLoadObj = useCallback(() => {
-    if (!objUrl) return;
-    
-    setIsLoading(true);
-    setStatusWithTimeout('Loading model...', 0);
-    setLoadedUrl(objUrl);
-  }, [objUrl]);
-
   const handleLoadProgress = useCallback((progress: number) => {
     if (!isLoading) return;
     setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
@@ -120,7 +96,6 @@ const ThreeDemo: React.FC = () => {
   const handleLoadError = useCallback((error: string) => {
     setIsLoading(false);
     setStatusWithTimeout(`Error: ${error}`);
-    setLoadedUrl('');
   }, []);
 
   const handleLoadComplete = useCallback(() => {
@@ -153,17 +128,6 @@ const ThreeDemo: React.FC = () => {
       <Container>
         <DemoContainer>
           <Controls>
-            <Input
-              type="text"
-              placeholder="Enter OBJ URL"
-              value={objUrl}
-              onChange={e => setObjUrl(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleLoadObj()}
-              disabled={isLoading}
-            />
-            <Button onClick={handleLoadObj} disabled={!objUrl || isLoading}>
-              {isLoading ? 'Loading...' : 'Load Model'}
-            </Button>
             <SecondaryButton onClick={toggleFullscreen}>
               Toggle Fullscreen
             </SecondaryButton>
@@ -171,7 +135,7 @@ const ThreeDemo: React.FC = () => {
           
           <CanvasContainer ref={containerRef}>
             <ThreeScene 
-              objUrl={loadedUrl} 
+              objUrl="/models/output_mesh.obj"
               onLoadProgress={handleLoadProgress}
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
