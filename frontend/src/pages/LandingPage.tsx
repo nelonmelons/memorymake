@@ -247,27 +247,35 @@ const LandingPage: React.FC = () => {
     };
   }, []);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      // Send to backend
-      fetch('http://localhost:8000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      .then(response => response.json())
-      .then(data => {
-        // Store the response data (e.g., model URL) in state or context
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Send to backend
+        const response = await fetch('http://localhost:8000/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
         console.log('Upload successful:', data);
-        navigate('/3d-demo', { state: { modelData: data } });
-      })
-      .catch(error => {
+        
+        // Wait a moment for processing
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Navigate to 3D view
+        navigate('/3d-demo');
+      } catch (error) {
         console.error('Upload failed:', error);
-        // Add error handling here
-      });
+        // Add error handling here - you might want to show an error message to the user
+      }
     }
   };
 
