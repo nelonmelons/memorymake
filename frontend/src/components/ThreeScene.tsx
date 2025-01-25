@@ -76,7 +76,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
           const scale = 2000.0 / maxDim; // MUCH larger scale
           
           // Position the object for optimal viewing
-          object.position.set(100, 100, -100);
+          object.position.set(100, 150, -100); //DO NOT FUCKING CHANGE THESE DIMENSIONS
           object.scale.multiplyScalar(scale);
 
           // Flip normals and rotate for correct orientation
