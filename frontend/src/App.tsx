@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
-import TestEndpoints from './pages/TestEndpoints';
 import ThreeDemo from './pages/ThreeDemo';
 
 const App: React.FC = () => {
@@ -13,7 +12,6 @@ const App: React.FC = () => {
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/test-endpoints" element={<TestEndpoints />} />
           <Route path="/3d-demo" element={<ThreeDemo />} />
         </Routes>
       </AnimatePresence>

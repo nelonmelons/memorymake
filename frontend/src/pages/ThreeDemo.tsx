@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 import { Button, SecondaryButton } from '../components/Button';
@@ -39,6 +39,7 @@ const CanvasContainer = styled.div`
   background: var(--bg-secondary);
   display: flex;
   justify-content: center;
+  min-height: 600px;
   
   &:fullscreen {
     padding: 0;
@@ -67,29 +68,65 @@ const StatusText = styled.div`
   }
 `;
 
+const StyledPageContainer = styled(motion.div)`
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+`;
+
 const ThreeDemo: React.FC = () => {
   const [objUrl, setObjUrl] = useState('');
   const [loadedUrl, setLoadedUrl] = useState('');
   const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
 
-  const handleLoadObj = () => {
-    if (!objUrl) return;
-    
-    setStatus('Loading model...');
-    setLoadedUrl(objUrl);
-    
-    // Clear previous timeout if exists
+  const clearStatusTimeout = () => {
     if (statusTimeoutRef.current) {
       window.clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = undefined;
     }
-    
-    // Clear status after 3 seconds
-    statusTimeoutRef.current = window.setTimeout(() => {
-      setStatus('');
-    }, 3000);
   };
+
+  const setStatusWithTimeout = (message: string, duration = 3000) => {
+    clearStatusTimeout();
+    setStatus(message);
+    if (duration > 0) {
+      statusTimeoutRef.current = window.setTimeout(() => {
+        setStatus('');
+        statusTimeoutRef.current = undefined;
+      }, duration);
+    }
+  };
+
+  const handleLoadObj = useCallback(() => {
+    if (!objUrl) return;
+    
+    setIsLoading(true);
+    setStatusWithTimeout('Loading model...', 0);
+    setLoadedUrl(objUrl);
+  }, [objUrl]);
+
+  const handleLoadProgress = useCallback((progress: number) => {
+    if (!isLoading) return;
+    setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
+  }, [isLoading]);
+
+  const handleLoadError = useCallback((error: string) => {
+    setIsLoading(false);
+    setStatusWithTimeout(`Error: ${error}`);
+    setLoadedUrl('');
+  }, []);
+
+  const handleLoadComplete = useCallback(() => {
+    setIsLoading(false);
+    setStatusWithTimeout('Model loaded successfully');
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -99,8 +136,15 @@ const ThreeDemo: React.FC = () => {
     }
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearStatusTimeout();
+    };
+  }, []);
+
   return (
-    <PageContainer
+    <StyledPageContainer
       initial="initial"
       animate="animate"
       exit="exit"
@@ -114,9 +158,11 @@ const ThreeDemo: React.FC = () => {
               placeholder="Enter OBJ URL"
               value={objUrl}
               onChange={e => setObjUrl(e.target.value)}
+              onKeyPress={e => e.key === 'Enter' && handleLoadObj()}
+              disabled={isLoading}
             />
-            <Button onClick={handleLoadObj} disabled={!objUrl}>
-              Load Model
+            <Button onClick={handleLoadObj} disabled={!objUrl || isLoading}>
+              {isLoading ? 'Loading...' : 'Load Model'}
             </Button>
             <SecondaryButton onClick={toggleFullscreen}>
               Toggle Fullscreen
@@ -124,22 +170,19 @@ const ThreeDemo: React.FC = () => {
           </Controls>
           
           <CanvasContainer ref={containerRef}>
-            <ThreeScene objUrl={loadedUrl} onLoadProgress={progress => {
-              setStatus(`Loading: ${Math.round(progress)}%`);
-            }} onLoadError={error => {
-              setStatus(`Error: ${error}`);
-              setTimeout(() => setStatus(''), 3000);
-            }} onLoadComplete={() => {
-              setStatus('Model loaded successfully');
-              setTimeout(() => setStatus(''), 3000);
-            }} />
+            <ThreeScene 
+              objUrl={loadedUrl} 
+              onLoadProgress={handleLoadProgress}
+              onLoadError={handleLoadError}
+              onLoadComplete={handleLoadComplete}
+            />
             <StatusText className={status ? 'visible' : ''}>
               {status}
             </StatusText>
           </CanvasContainer>
         </DemoContainer>
       </Container>
-    </PageContainer>
+    </StyledPageContainer>
   );
 };
 

@@ -25,10 +25,14 @@ const NavLinks = styled.div`
   gap: 2rem;
 `;
 
-const NavLink = styled(Link)<{ $active?: boolean }>`
-  color: ${props => props.$active ? 'var(--accent-primary)' : 'var(--text-secondary)'};
+const StyledNavLink = styled(Link)`
+  color: var(--text-secondary);
   font-weight: 500;
   transition: color 0.2s ease-in-out;
+  
+  &[data-active="true"] {
+    color: var(--accent-primary);
+  }
   
   &:hover {
     color: var(--accent-primary);
@@ -46,16 +50,16 @@ const Navbar: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          Memory 2.5D
+          Memory 3D
         </motion.span>
       </Brand>
       <NavLinks>
-        <NavLink to="/test-endpoints" $active={location.pathname === '/test-endpoints'}>
-          Test Endpoints
-        </NavLink>
-        <NavLink to="/3d-demo" $active={location.pathname === '/3d-demo'}>
+        <StyledNavLink 
+          to="/3d-demo" 
+          data-active={(location.pathname === '/3d-demo').toString()}
+        >
           3D Demo
-        </NavLink>
+        </StyledNavLink>
       </NavLinks>
     </Nav>
   );
