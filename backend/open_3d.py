@@ -57,11 +57,11 @@ def compute_meshes(pcd, save_path=None):
     # Poisson reconstruction
     mesh_poisson, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
         pcd,
-        depth=10
+        depth=9
     )
 
     # Filter low-density vertices
-    dens_thresh = np.quantile(densities, 0.1)  # Remove lowest 10%
+    dens_thresh = np.quantile(densities, 0.3)  # Remove lowest 10%
     vertices_to_remove = densities < dens_thresh
     mesh_poisson.remove_vertices_by_mask(vertices_to_remove)
 
@@ -84,7 +84,15 @@ def compute_meshes(pcd, save_path=None):
     #     mesh_poisson = mesh_poisson.subdivide_loop(number_of_iterations=1)
 
     # Smooth the mesh
-    # mesh_poisson = mesh_poisson.filter_smooth_laplacian(number_of_iterations=10)
+    print(f"Before smoothing: Vertices = {len(mesh_poisson.vertices)}, Faces = {len(mesh_poisson.triangles)}")
+    mesh_poisson.filter_smooth_laplacian(number_of_iterations=7)
+    print(f"After smoothing: Vertices = {len(mesh_poisson.vertices)}, Faces = {len(mesh_poisson.triangles)}")
+
+    # Flip the orientation of the mesh by reversing the order of the triangles
+    mesh_poisson.triangles = o3d.utility.Vector3iVector(np.asarray(mesh_poisson.triangles)[..., ::-1])
+
+    # Recompute vertex normals after flipping the triangles
+    mesh_poisson.compute_vertex_normals()
 
     # transformations.curve_mesh(mesh_poisson)
 
@@ -93,6 +101,7 @@ def compute_meshes(pcd, save_path=None):
         print(f"Mesh saved to {save_path}")
         
     # Visualize the final mesh
+    o3d.visualization.draw_geometries([mesh_poisson])
     o3d.visualization.draw_geometries([pcd, mesh_poisson])
 
 def main(color_image_path, depth_image_path, save_path, scale=1.5):
