@@ -1,23 +1,30 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styled from '@emotion/styled';
-import { motion } from 'framer-motion';
 
-const Nav = styled.nav`
-  background: var(--bg-secondary);
+const NavbarContainer = styled.nav`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
   padding: 1rem 2rem;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 100;
 `;
 
-const Brand = styled(Link)`
-  font-size: 1.25rem;
+const Logo = styled(Link)`
+  color: #fff;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  text-decoration: none;
+  background: linear-gradient(135deg, #ff00ff, #00ffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255, 0, 255, 0.3));
 `;
 
 const NavLinks = styled.div`
@@ -25,43 +32,44 @@ const NavLinks = styled.div`
   gap: 2rem;
 `;
 
-const StyledNavLink = styled(Link)`
-  color: var(--text-secondary);
+const NavLink = styled(Link)`
+  color: #fff;
+  text-decoration: none;
   font-weight: 500;
-  transition: color 0.2s ease-in-out;
+  transition: all 0.3s ease;
+  position: relative;
+  padding: 0.5rem 1rem;
   
-  &[data-active="true"] {
-    color: var(--accent-primary);
+  &::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, #ff00ff, #00ffff);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
   }
   
   &:hover {
-    color: var(--accent-primary);
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    &::before {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
   }
 `;
 
 const Navbar: React.FC = () => {
-  const location = useLocation();
-  
   return (
-    <Nav>
-      <Brand to="/">
-        <motion.span
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          Memory 3D
-        </motion.span>
-      </Brand>
+    <NavbarContainer>
+      <Logo to="/">Memory 3D</Logo>
       <NavLinks>
-        <StyledNavLink 
-          to="/3d-demo" 
-          data-active={(location.pathname === '/3d-demo').toString()}
-        >
-          3D Demo
-        </StyledNavLink>
+        <NavLink to="/three-demo">3D Demo</NavLink>
       </NavLinks>
-    </Nav>
+    </NavbarContainer>
   );
 };
 

@@ -1,5 +1,12 @@
 .venv
 venv
+
+# Model directories
+models/
+**/models/
+public/models/
+frontend/public/models/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -18,7 +25,8 @@ npm-debug.log
 yarn-error.log
 dist/
 .DS_Store
-/models
 
+# 3D Model files
 *.ply
-
+output_mesh/
+**/output_mesh/
