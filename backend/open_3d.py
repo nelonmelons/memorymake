@@ -1,7 +1,7 @@
 import open3d as o3d
 import numpy as np
 import cv2
-import transformations
+from scipy.spatial import Delaunay
 
 def compute_point_cloud(color_image_path, depth_image_path, scale=1.5):
 
@@ -55,61 +55,111 @@ def compute_point_cloud(color_image_path, depth_image_path, scale=1.5):
 def compute_meshes(pcd, save_path=None):
 
     # Poisson reconstruction
-    mesh_poisson, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
         pcd,
         depth=9
     )
 
-    # Filter low-density vertices
+    # # Filter low-density vertices
     dens_thresh = np.quantile(densities, 0.3)  # Remove lowest 10%
     vertices_to_remove = densities < dens_thresh
-    mesh_poisson.remove_vertices_by_mask(vertices_to_remove)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
 
     # Build a KD-tree from the point cloud
     pcd_tree = o3d.geometry.KDTreeFlann(pcd)
 
     # Transfer colors from the point cloud to the mesh
     mesh_colors = []
-    for v in mesh_poisson.vertices:
+    for v in mesh.vertices:
         # Find nearest neighbor for each mesh vertex in the point cloud
         [_, idx, _] = pcd_tree.search_knn_vector_3d(v, 1)
         nearest_color = pcd.colors[idx[0]]
         mesh_colors.append(nearest_color)
 
     # Assign vertex colors to the mesh
-    mesh_poisson.vertex_colors = o3d.utility.Vector3dVector(mesh_colors)
+    mesh.vertex_colors = o3d.utility.Vector3dVector(mesh_colors)
 
     # Subdivide the mesh
     # for _ in range(2):
     #     mesh_poisson = mesh_poisson.subdivide_loop(number_of_iterations=1)
 
     # Smooth the mesh
-    print(f"Before smoothing: Vertices = {len(mesh_poisson.vertices)}, Faces = {len(mesh_poisson.triangles)}")
-    mesh_poisson.filter_smooth_laplacian(number_of_iterations=7)
-    print(f"After smoothing: Vertices = {len(mesh_poisson.vertices)}, Faces = {len(mesh_poisson.triangles)}")
+    print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
+    # mesh.filter_smooth_laplacian(number_of_iterations=7)
+    print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
 
     # Flip the orientation of the mesh by reversing the order of the triangles
-    mesh_poisson.triangles = o3d.utility.Vector3iVector(np.asarray(mesh_poisson.triangles)[..., ::-1])
+    mesh.triangles = o3d.utility.Vector3iVector(np.asarray(mesh.triangles)[..., ::-1])
 
     # Recompute vertex normals after flipping the triangles
-    mesh_poisson.compute_vertex_normals()
+    mesh.compute_vertex_normals()
 
     # transformations.curve_mesh(mesh_poisson)
 
     if save_path:
-        o3d.io.write_triangle_mesh(save_path, mesh_poisson)
+        o3d.io.write_triangle_mesh(save_path, mesh)
         print(f"Mesh saved to {save_path}")
         
     # Visualize the final mesh
-    o3d.visualization.draw_geometries([mesh_poisson])
-    o3d.visualization.draw_geometries([pcd, mesh_poisson])
+    o3d.visualization.draw_geometries([mesh])
+    o3d.visualization.draw_geometries([pcd, mesh])
+
+def delauny_method(pcd, save_path=None):
+    # Extract points from the point cloud
+    points = np.asarray(pcd.points)
+
+    # Perform Delaunay triangulation
+    triangulation = Delaunay(points[:, :2])  # Perform Delaunay triangulation in 2D (xy-plane)
+    # For 3D, you may need to use a more sophisticated triangulation method like Delaunay in 3D
+    # triangulation = Delaunay(points) # This can be computationally expensive for large datasets
+
+    # Convert Delaunay triangulation to a mesh
+    vertices = points
+    triangles = triangulation.simplices  # The simplices (triangles) from Delaunay
+
+    # Create the mesh using Open3D
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    mesh.triangles = o3d.utility.Vector3iVector(triangles)
+
+    # Optionally, compute vertex normals
+    mesh.compute_vertex_normals()
+
+    # Assign colors from point cloud to mesh vertices
+    pcd_tree = o3d.geometry.KDTreeFlann(pcd)
+    mesh_colors = []
+    for v in mesh.vertices:
+        [_, idx, _] = pcd_tree.search_knn_vector_3d(v, 1)
+        nearest_color = pcd.colors[idx[0]]
+        mesh_colors.append(nearest_color)
+
+    # Assign vertex colors to the mesh
+    mesh.vertex_colors = o3d.utility.Vector3dVector(mesh_colors)
+
+    # Smooth the mesh (optional)
+    print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
+    mesh.filter_smooth_laplacian(number_of_iterations=10)
+    print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
+
+    # Flip the orientation of the mesh by reversing the order of the triangles (if necessary)
+    mesh.triangles = o3d.utility.Vector3iVector(np.asarray(mesh.triangles)[..., ::-1])
+
+    # Recompute vertex normals after flipping the triangles
+    mesh.compute_vertex_normals()
+
+    if save_path:
+        o3d.io.write_triangle_mesh(save_path, mesh)
+        print(f"Mesh saved to {save_path}")
+        
+    # Visualize the final mesh
+    o3d.visualization.draw_geometries([mesh])
 
 def main(color_image_path, depth_image_path, save_path, scale=1.5):
     pcd = compute_point_cloud(color_image_path, depth_image_path, scale=scale)
-    compute_meshes(pcd, save_path=save_path)
+    delauny_method(pcd, save_path=save_path)
 
 if __name__ == "__main__":
-    color_image_path = "panorama.png"
-    depth_image_path = "panorama_depth.png"
+    color_image_path = "assets/building.png"
+    depth_image_path = "assets/building_depth.png"
     save_path = "panorama_mesh.obj"
     main(color_image_path, depth_image_path, save_path, scale=1.5)
