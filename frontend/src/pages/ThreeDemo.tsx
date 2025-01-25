@@ -54,6 +54,35 @@ const StatusText = styled.div`
   }
 `;
 
+const LoadingBar = styled.div<{ progress: number }>`
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: ${props => props.progress < 100 ? 1 : 0};
+  transition: opacity 0.3s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${props => props.progress}%;
+    background: linear-gradient(
+      90deg,
+      var(--accent-primary),
+      var(--accent-secondary)
+    );
+    transition: width 0.3s ease;
+  }
+`;
+
 const StyledPageContainer = styled(motion.div)`
   min-height: 100vh;
   width: 100%;
@@ -66,7 +95,9 @@ const StyledPageContainer = styled(motion.div)`
 
 const ThreeDemo: React.FC = () => {
   const [status, setStatus] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [renderMode, setRenderMode] = useState<'processed' | 'raw'>('processed');
   const containerRef = useRef<HTMLDivElement>(null);
   const statusTimeoutRef = useRef<number>();
 
@@ -90,6 +121,7 @@ const ThreeDemo: React.FC = () => {
 
   const handleLoadProgress = useCallback((progress: number) => {
     if (!isLoading) return;
+    setLoadingProgress(progress);
     setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
   }, [isLoading]);
 
@@ -100,6 +132,7 @@ const ThreeDemo: React.FC = () => {
 
   const handleLoadComplete = useCallback(() => {
     setIsLoading(false);
+    setLoadingProgress(100);
     setStatusWithTimeout('Model loaded successfully');
   }, []);
 
@@ -131,11 +164,15 @@ const ThreeDemo: React.FC = () => {
             <SecondaryButton onClick={toggleFullscreen}>
               Toggle Fullscreen
             </SecondaryButton>
+            <SecondaryButton onClick={() => setRenderMode(mode => mode === 'processed' ? 'raw' : 'processed')}>
+              Switch to {renderMode === 'processed' ? 'Raw' : 'Processed'} OBJ
+            </SecondaryButton>
           </Controls>
           
           <CanvasContainer ref={containerRef}>
             <ThreeScene 
-              objUrl="/models/output_mesh.obj"
+              objUrl={renderMode === 'processed' ? "/models/denauny_panorama.obj" : undefined}
+              localObjPath={renderMode === 'raw' ? "/models/panorama_mesh.obj" : undefined}
               onLoadProgress={handleLoadProgress}
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
@@ -143,6 +180,7 @@ const ThreeDemo: React.FC = () => {
             <StatusText className={status ? 'visible' : ''}>
               {status}
             </StatusText>
+            <LoadingBar progress={loadingProgress} />
           </CanvasContainer>
         </DemoContainer>
       </Container>

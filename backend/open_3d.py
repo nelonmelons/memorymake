@@ -109,7 +109,7 @@ def main(color_image_path, depth_image_path, save_path, scale=1.5):
     compute_meshes(pcd, save_path=save_path)
 
 if __name__ == "__main__":
-    color_image_path = "panorama.png"
-    depth_image_path = "panorama_depth.png"
+    color_image_path = "assets/building.png"
+    depth_image_path = "assets/building_depth.png"
     save_path = "panorama_mesh.obj"
     main(color_image_path, depth_image_path, save_path, scale=1.5)

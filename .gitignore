@@ -1,5 +1,7 @@
 .venv
 venv
+backend/models/
+frontend/models/
 # Python
 __pycache__/
 *.py[cod]

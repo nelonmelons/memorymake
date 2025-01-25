@@ -20,6 +20,7 @@ const Canvas = styled.div`
 
 interface ThreeSceneProps {
   objUrl?: string;
+  localObjPath?: string;
   onLoadProgress?: (progress: number) => void;
   onLoadError?: (error: string) => void;
   onLoadComplete?: () => void;
@@ -27,6 +28,7 @@ interface ThreeSceneProps {
 
 const ThreeScene: React.FC<ThreeSceneProps> = ({
   objUrl,
+  localObjPath,
   onLoadProgress,
   onLoadError,
   onLoadComplete
@@ -41,6 +43,83 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
   const loadingRef = useRef<boolean>(false);
   const currentUrlRef = useRef<string>('');
 
+  // Load model function
+  const loadModel = (path: string) => {
+    if (!sceneRef.current || !cameraRef.current || !controlsRef.current) return;
+    
+    const loader = new OBJLoader();
+    console.log('Loading model from:', path);
+    
+    loader.load(
+      path,
+      (object) => {
+        if (sceneRef.current && cameraRef.current && controlsRef.current) {
+          // Center and scale the loaded object
+          const box = new THREE.Box3().setFromObject(object);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          
+          // Scale the model to create a larger viewing space
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 2000.0 / maxDim; // MUCH larger scale
+          
+          // Position the object EXTREMELY close to the camera
+          object.position.set(100, 120, 80); // Ultra close to camera (changed from -10 to -2)
+          object.scale.multiplyScalar(scale);
+
+          // Flip normals and rotate for correct orientation
+          object.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              if (child.geometry) {
+                // Scale to create wrap-around effect
+                child.geometry.scale(1, -1, 1); // Invert X to create inside-out view
+                child.geometry = child.geometry.toNonIndexed(); // Allow for better normal manipulation
+              }
+              if (!child.material) {
+                child.material = new THREE.MeshStandardMaterial({
+                  color: 0xffffff,
+                  metalness: 0.0,
+                  roughness: 0.5,
+                  side: THREE.BackSide // Render inside of geometry
+                });
+              } else if (child.material instanceof THREE.Material) {
+                child.material.side = THREE.BackSide; // Render inside of geometry
+              }
+            }
+          });
+          
+          // Remove previous model if exists
+          if (modelRef.current) {
+            sceneRef.current.remove(modelRef.current);
+          }
+          
+          // Rotate to create proper wrap-around orientation
+          object.rotation.set(0, Math.PI, 0);
+          
+          sceneRef.current.add(object);
+          modelRef.current = object;
+
+          // Reset camera and controls
+          cameraRef.current.position.set(0, 0, 0);
+          controlsRef.current.target.set(0, 0, -10);
+          controlsRef.current.update();
+          
+          onLoadComplete?.();
+        }
+      },
+      (xhr) => {
+        if (xhr.lengthComputable) {
+          const progress = Math.min((xhr.loaded / xhr.total) * 100, 100);
+          onLoadProgress?.(progress);
+        }
+      },
+      (error) => {
+        console.error('Error loading model:', error);
+        onLoadError?.(error.message || 'Failed to load model');
+      }
+    );
+  };
+
   // Initialize Three.js scene
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -52,13 +131,12 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
 
     // Camera setup
     const camera = new THREE.PerspectiveCamera(
-      45,
+      100, // Reduced FOV to minimize distortion (from 120)
       canvasRef.current.clientWidth / canvasRef.current.clientHeight,
-      0.1,
-      1000
+      0.01,
+      20000
     );
-    camera.position.set(5, 5, 5);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 0, 0);
     cameraRef.current = camera;
 
     // Renderer setup
@@ -73,19 +151,22 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
     canvasRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls setup
+    // Controls setup for spherical viewing
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = true;
-    controls.rotateSpeed = 0.8;
+    controls.screenSpacePanning = false;
+    controls.rotateSpeed = 0.3; // Slower rotation for more precise control
     controls.enableZoom = true;
-    controls.enablePan = true;
-    controls.minDistance = 2;
-    controls.maxDistance = 15;
-    controls.maxPolarAngle = Math.PI / 1.5;
-    controls.target.set(0, 0, 0);
-    controls.update();
+    controls.minDistance = 0.1;
+    controls.maxDistance = 3;
+    controls.enablePan = false;
+    controls.autoRotate = false;
+    controls.maxPolarAngle = Math.PI * 0.75; // Reduced vertical rotation range
+    controls.minPolarAngle = Math.PI * 0.25;
+    controls.maxAzimuthAngle = Math.PI * 0.75; // Reduced horizontal rotation range
+    controls.minAzimuthAngle = -Math.PI * 0.75;
+    controls.target.set(0, 0, -10); // Match ultra-close object position
     controlsRef.current = controls;
 
     // Simple lighting setup
@@ -96,56 +177,11 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
     directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
 
-    // Load model immediately
+    // Load model if URL or path is provided
     if (objUrl) {
-      const loader = new OBJLoader();
-      const modelPath = objUrl.startsWith('/') ? objUrl : `/${objUrl}`;
-      
-      loader.load(
-        modelPath,
-        (object) => {
-          if (sceneRef.current && cameraRef.current) {
-            // Center and scale the loaded object
-            const box = new THREE.Box3().setFromObject(object);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = 5 / maxDim;
-            
-            object.position.set(0, 0, 0);
-            object.position.sub(center);
-            object.scale.multiplyScalar(scale);
-
-            // Add basic material
-            object.traverse((child) => {
-              if (child instanceof THREE.Mesh) {
-                // Keep original material if it exists
-                if (!child.material) {
-                  child.material = new THREE.MeshStandardMaterial({
-                    color: 0xffffff,  // White base color to show texture colors accurately
-                    metalness: 0.0,   // No metallic effect
-                    roughness: 0.5,   // Medium roughness
-                  });
-                }
-              }
-            });
-            
-            sceneRef.current.add(object);
-            modelRef.current = object;
-            onLoadComplete?.();
-          }
-        },
-        (xhr) => {
-          if (xhr.lengthComputable) {
-            const progress = Math.min((xhr.loaded / xhr.total) * 100, 100);
-            onLoadProgress?.(progress);
-          }
-        },
-        (error) => {
-          console.error('Error loading model:', error);
-          onLoadError?.(error.message || 'Failed to load model');
-        }
-      );
+      loadModel(objUrl);
+    } else if (localObjPath) {
+      loadModel(localObjPath);
     }
 
     // Handle resize
@@ -204,7 +240,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
         }
       }
     };
-  }, []);
+  }, [objUrl, localObjPath]);
 
   return <Canvas ref={canvasRef} />;
 };
