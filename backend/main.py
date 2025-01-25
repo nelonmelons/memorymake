@@ -3,13 +3,17 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
+import time
+import asyncio
+from midas_depth_map import midas_main
+from open_3d import open_3d_main
 
 app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_origins=["http://localhost:3000"],  # Frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,6 +23,7 @@ app.add_middleware(
 UPLOAD_FOLDER = 'uploads'
 RENDERED_FOLDER = 'rendered_files'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
+PUBLIC_DIR = os.path.join(os.getcwd(), "public")
 
 # Ensure the upload and rendered directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -38,7 +43,8 @@ async def upload_file(file: UploadFile = File(...)):
 
         # Create a unique filename
         file_extension = file.filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"upload_{os.urandom(8).hex()}.{file_extension}"
+        unique_file_first = f"upload_{os.urandom(8).hex()}"
+        unique_filename = f"{unique_file_first}.{file_extension}"
         
         # Save the uploaded file
         file_location = os.path.join(UPLOAD_FOLDER, unique_filename)
@@ -47,18 +53,13 @@ async def upload_file(file: UploadFile = File(...)):
 
         # Process the file (dummy processing step here)
         # Imagine calling a function like `process_image_to_3d(file_location)`
-        output_filename = f"output_mesh.obj"
-        rendered_file_path = os.path.join(RENDERED_FOLDER, output_filename)
+        print('file_location ', file_location)
+        output_filename = os.path.join(PUBLIC_DIR, 'models', f"{unique_file_first}.obj")
+        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
+        print('Processing complete.')
 
-        # Dummy operation: just copy the file to the rendered folder for now
-        # In reality, you would process the image to create the OBJ file here
-        shutil.copy(file_location, rendered_file_path)
-
-        return {
-            "message": "File uploaded and processed successfully",
-            "original_file": unique_filename,
-            "rendered_file": output_filename
-        }
+        return {'status': 'success',
+                'file_name': output_filename}
     except Exception as e:
         return {"error": str(e)}, 500
 
@@ -68,3 +69,16 @@ async def get_rendered_file(file_name: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
     return {"error": "File not found"}, 404
+
+
+@app.post("/test")
+async def baka(file: UploadFile = File(...)):  # Assuming `var` is a JSON payload
+    print('baka')
+    await asyncio.sleep(60)  # Asynchronous sleep
+    return {"message": "baka"}
+
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run('main:app', host="127.0.0.1",
+#                 port=8000,
+#                 ssl)
