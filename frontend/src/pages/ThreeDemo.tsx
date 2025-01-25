@@ -1,9 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import styled from '@emotion/styled';
-import { motion } from 'framer-motion';
-import { SecondaryButton } from '../components/Button';
-import { Container, pageTransition } from '../components/Container';
-import ThreeScene from '../components/ThreeScene';
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import styled from "@emotion/styled";
+import { motion } from "framer-motion";
+import { SecondaryButton } from "../components/Button";
+import { Container, pageTransition } from "../components/Container";
+import ThreeScene from "../components/ThreeScene";
 
 const DemoContainer = styled.div`
   display: flex;
@@ -26,7 +26,7 @@ const CanvasContainer = styled.div`
   display: flex;
   justify-content: center;
   min-height: 600px;
-  
+
   &:fullscreen {
     padding: 0;
     width: 100vw;
@@ -48,7 +48,7 @@ const StatusText = styled.div`
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  
+
   &.visible {
     opacity: 1;
   }
@@ -113,7 +113,7 @@ const ThreeDemo: React.FC = () => {
     setStatus(message);
     if (duration > 0) {
       statusTimeoutRef.current = window.setTimeout(() => {
-        setStatus('');
+        setStatus("");
         statusTimeoutRef.current = undefined;
       }, duration);
     }
@@ -168,7 +168,7 @@ const ThreeDemo: React.FC = () => {
               Switch to {renderMode === 'processed' ? 'Raw' : 'Processed'} OBJ
             </SecondaryButton>
           </Controls>
-          
+
           <CanvasContainer ref={containerRef}>
             <ThreeScene 
               objUrl={renderMode === 'processed' ? "/models/denauny_panorama.obj" : undefined}
@@ -177,7 +177,7 @@ const ThreeDemo: React.FC = () => {
               onLoadError={handleLoadError}
               onLoadComplete={handleLoadComplete}
             />
-            <StatusText className={status ? 'visible' : ''}>
+            <StatusText className={status ? "visible" : ""}>
               {status}
             </StatusText>
             <LoadingBar progress={loadingProgress} />
@@ -188,4 +188,4 @@ const ThreeDemo: React.FC = () => {
   );
 };
 
-export default ThreeDemo; 
+export default ThreeDemo;
