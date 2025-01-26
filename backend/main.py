@@ -85,11 +85,11 @@ async def generate_from_prompt(obj: dict):
         print(f"Image saved at: {save_image_path}")
 
         if style != "photorealistic":
-            apply_style_transfer(save_image_path, f"nst_styles/{style}.jpg")
-            print("Style transfer complete.")
-
-        # Process the image to generate 3D object
-        await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename)
+            # Process the image to generate 3D object
+            await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style=style)
+        else:
+            await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename)
+            
         print(f"Processing complete. OBJ saved at: {output_filename}")
 
         # Clean up the generated image file after processing

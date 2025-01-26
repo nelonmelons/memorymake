@@ -3,6 +3,7 @@ import tensorflow_hub as hub
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+import cv2
 
 import ssl
 import urllib.request
@@ -105,6 +106,51 @@ def apply_style_transfer(content_image_path, style_image_path):
     # Save the output image
     # output_image.save("output.jpg")
     output_image.save(content_image_path)
+
+def apply_style_transfer_from_array(color_raw, style):
+    # Get dimensions of the content image to determine target size
+    content_height, content_width, _ = color_raw.shape
+
+    # Dynamically calculate the target size with a 2:1 aspect ratio
+    target_width = content_width
+    target_height = content_width // 2  # Ensuring a 2:1 aspect ratio
+
+    # Resize and normalize the content image
+    content_image = resize_and_normalize(color_raw, (target_width, target_height))
+
+    style_image_path = f"nst_styles/{style}.jpg"
+
+    # Load and process the style image
+    style_image = load_and_process_image(style_image_path, (target_width, target_height))
+
+    # Load the pre-trained model from TensorFlow Hub
+    model = load_model()
+
+    # Perform style transfer
+    stylized_image = neural_style_transfer(content_image, style_image, model)
+
+    # Convert stylized image tensor to array
+    stylized_image_array = np.array(stylized_image[0] * 255, dtype=np.uint8)
+
+    # Resize back to original dimensions and overwrite in place
+    stylized_image_array = cv2.resize(
+        stylized_image_array,
+        (content_width, content_height),
+        interpolation=cv2.INTER_LANCZOS4
+    )
+
+    # Modify the input array in place
+    color_raw[:, :, :] = stylized_image_array
+    return color_raw
+
+def resize_and_normalize(image_array, target_size):
+    """Resize and normalize a NumPy image array."""
+    # Resize the image to target size
+    resized_image = cv2.resize(image_array, target_size, interpolation=cv2.INTER_LANCZOS4)
+
+    # Normalize to [0, 1] and add batch dimension
+    normalized_image = np.array(resized_image) / 255.0
+    return normalized_image[tf.newaxis, ...]
 
 if __name__ == '__main__':
     # Example usage (adjust the paths to your images)
