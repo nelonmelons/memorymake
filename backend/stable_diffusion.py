@@ -16,15 +16,12 @@ def generate_image(prompt: str, style: str, save_path: str) -> None:
     # Initialize the Hugging Face InferenceClient
     client = InferenceClient(api_key=os.getenv("HF_TOKEN"))
 
-    base_prompt = "Generate a 180-degree panoramic view with a balanced composition of foreground, middle ground, and background. " \
-              "The middle ground should serve as the central focus, with prominent details and spatial coherence. The foreground " \
-              "should not dominate the view but provide context and depth, while the background adds subtle depth and completes " \
-              "the composition. Ensure the middle ground and background are aligned to maintain a consistent sense of depth. " \
-              "Lighting and textures should be realistic, with all elements rendered in a way suitable for 3D reconstruction, " \
-              "including rich details, clear geometry, and seamless continuity across the panorama."
+    base_prompt = "A 180-degree panorama of a landscape or architecture with a planar composition, where the foreground, middle ground, and background are clearly separated into horizontal planes. \
+                The scene is captured in a wide, continuous panoramic view under natural daylight, with soft shadows and even lighting, ensuring clean depth segmentation. \
+                No distracting elements or converging depth; the focus is on planar horizontal layering. Should be suitable for 3D modelling and visualization."
     
     # Define the final prompt based on the style
-    final_prompt = f"Create a {style} image of {prompt}. {base_prompt}"
+    final_prompt = f"Create a {style} style image of {prompt}. {base_prompt}"
 
     # Generate the image with the created prompt
     image = client.text_to_image(
@@ -34,10 +31,12 @@ def generate_image(prompt: str, style: str, save_path: str) -> None:
         width=1024,  # Width of the image
         num_inference_steps=50,  # Increase steps for higher quality
         guidance_scale=7.5, # Adjust to a higher value for better adherence to the prompt
-        negative_prompt="Exclude abstract, distorted, or inconsistent features. Avoid any compositional imbalance, such as an overly " \
-                  "dominant foreground or a lack of distinction between foreground, middle ground, and background. Prevent " \
-                  "artifacts or mismatched depth planes that disrupt spatial coherence. Exclude obstructions and overly complex " \
-                  "or cluttered elements that detract from the intended panoramic scene."
+        negative_prompt="Do not include any deep perspective effects, objects receding into the middle, or significant depth convergence. \
+                    Avoid side-focused elements, uneven terrain, or cluttered foregrounds. \
+                    Exclude distractions like people, animals, or modern artifacts. \
+                    Do not generate any skewed, asymmetric, or chaotic scenes. \
+                    Avoid harsh lighting, strong shadows, fog, or haziness that obscures the planes. \
+                    Ensure the layout is horizontally aligned and planar, avoiding complexity or extreme variations in elevation."
     )
 
     image.save(save_path)
