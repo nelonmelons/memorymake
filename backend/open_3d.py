@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 from scipy.spatial import Delaunay
 from midas_depth_map import midas_main
-from root_scale import root_scaling
+from transformations import root_scaling
 
 @DeprecationWarning
 def compute_point_cloud(color_image_path, scale=1.5):

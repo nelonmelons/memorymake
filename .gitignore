@@ -31,3 +31,8 @@ dist/
 output_mesh/
 **/output_mesh/
 *.obj
+
+uploads/
+files/
+rendered/
+.env
