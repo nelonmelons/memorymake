@@ -206,11 +206,12 @@ def visualize_depth_map(depth_map_normalized):
     """
     # Save as grayscale image
     
-    plt.imshow(depth_map_normalized, cmap='plasma')
-    plt.savefig("depth_map.png")
-    plt.colorbar()
-    plt.title("Normalized Depth Map (Colormapped)")
-    plt.show()
+    fig, ax = plt.subplots()
+    cax = ax.imshow(depth_map_normalized, cmap='plasma')
+    fig.colorbar(cax)
+    ax.set_title("Normalized Depth Map (Colormapped)")
+    fig.savefig("depth_map.png")
+    plt.close(fig)
 
 
 def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
@@ -240,12 +241,14 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
         raise FileNotFoundError(f"Image not found at {input_image_path}")
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-# Convert numpy.ndarray (OpenCV image) to PIL.Image
+    # Convert numpy.ndarray (OpenCV image) to PIL.Image
     image = Image.fromarray(image)
 
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
     # save_depth_map_as_png(depth_map_normalized)
+
+    visualize_depth_map(depth_map_normalized)
 
     # Optional: Visualize depth map
     # image_np = np.array(image)

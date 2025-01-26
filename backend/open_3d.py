@@ -136,7 +136,7 @@ def cylindrical_projection(color_image_path,
     return pcd
 
 
-def compute_meshes(pcd, save_path=None):
+def compute_meshes(pcd, save_path=None, visualize=False):
 
     # Poisson reconstruction
     mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
@@ -169,7 +169,7 @@ def compute_meshes(pcd, save_path=None):
 
     # Smooth the mesh
     print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
-    # mesh.filter_smooth_laplacian(number_of_iterations=7)
+    mesh.filter_smooth_laplacian(number_of_iterations=7)
     print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
 
     # Flip the orientation of the mesh by reversing the order of the triangles
@@ -184,9 +184,9 @@ def compute_meshes(pcd, save_path=None):
         o3d.io.write_triangle_mesh(save_path, mesh)
         print(f"Mesh saved to {save_path}")
         
-    # Visualize the final mesh
-    o3d.visualization.draw_geometries([mesh])
-    o3d.visualization.draw_geometries([pcd, mesh])
+    if visualize:
+        # Visualize the final mesh
+        o3d.visualization.draw_geometries([mesh])
 
 def delauny_method(pcd, save_path=None):
     # Extract points from the point cloud
