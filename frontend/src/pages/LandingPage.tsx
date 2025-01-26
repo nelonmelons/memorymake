@@ -235,7 +235,6 @@ const HeroTitle = styled(motion.h1)`
     #ffffff 50%,
     #ff99ff 100%
   );
-  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8))
@@ -519,22 +518,22 @@ const Sun = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 120px;
-  height: 120px;
+  width: 60px;
+  height: 60px;
   background: radial-gradient(circle at 30% 30%, #ffd700, #ff4500);
   border-radius: 50%;
   box-shadow: 
-    0 0 80px rgba(255, 215, 0, 0.4),
-    0 0 120px rgba(255, 69, 0, 0.3);
+    0 0 40px rgba(255, 215, 0, 0.4),
+    0 0 60px rgba(255, 69, 0, 0.3);
   z-index: 1;
   
   &::after {
     content: '';
     position: absolute;
-    top: -30px;
-    left: -30px;
-    right: -30px;
-    bottom: -30px;
+    top: -15px;
+    left: -15px;
+    right: -15px;
+    bottom: -15px;
     border-radius: 50%;
     background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3), transparent 70%);
     animation: pulse 4s ease-in-out infinite;
@@ -578,12 +577,99 @@ const Planet = styled.div<{ $size: number; $orbitSize: number; $speed: number; $
   }
 `;
 
+const StyleSelectionContainer = styled(motion.div)`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1rem;
+`;
+
+const StyleButton = styled(motion.button)`
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: white;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #ff00ff, #00ffff);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 12px;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: transparent;
+    
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .description {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    text-align: center;
+  }
+`;
+
+const getStageText = (showStyles: boolean, showUpload: boolean) => {
+  if (showStyles) {
+    return "Choose a theme for your 3D transformation. Each style offers a unique visual experience.";
+  } else if (showUpload) {
+    return "Upload your panoramic photo and add an optional description to enhance the transformation.";
+  }
+  return "Transform your cherished moments into immersive three-dimensional experiences. Step into your photos and explore them like never before.";
+};
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
+  const [showStyles, setShowStyles] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [imagination, setImagination] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState('');
+
+  const handleStyleSelect = (style: string) => {
+    setSelectedStyle(style);
+    setShowStyles(false);
+    setShowUpload(true);
+  };
+
+  const handleGetStarted = () => {
+    setShowStyles(true);
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -592,28 +678,45 @@ const LandingPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) return;
-    
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('imagination', imagination);
+    if (!selectedStyle) return;
     
     try {
-      const response = await fetch('http://localhost:8000/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!response.ok) throw new Error('Upload failed');
+      let response;
+      
+      if (selectedFile) {
+        // Handle image upload case
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('style', selectedStyle);
+        
+        response = await fetch('http://localhost:8000/upload', {
+          method: 'POST',
+          body: formData,
+        });
+      } else if (prompt) {
+        // Handle text prompt case
+        response = await fetch('http://localhost:8000/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt,
+            style: selectedStyle
+          }),
+        });
+      } else {
+        throw new Error('Either file or prompt is required');
+      }
+
+      if (!response.ok) throw new Error('Request failed');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
-      // Save the URL in state and navigate to the new page
       setFileUrl(url);
       navigate('/three-demo', { state: { fileUrl: url } });
-
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('Request failed:', error);
     }
   };
 
@@ -670,36 +773,65 @@ const LandingPage: React.FC = () => {
       <Container>
         <HeroSection>
           <Content>
-            <HeroTitle
-              variants={titleVariants}
-              animate={{
-                scale: [1, 1.02, 1],
-                transition: { duration: 3, repeat: Infinity }
-              }}
-            >
+            <HeroTitle>
               Relive your memories in 3D
             </HeroTitle>
-            <HeroSubtitle
-              variants={subtitleVariants}
-              animate={{
-                opacity: [0.8, 1, 0.8],
-                transition: { duration: 4, repeat: Infinity }
-              }}
+            <HeroSubtitle 
+              key={showStyles ? 'styles' : showUpload ? 'upload' : 'initial'}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
             >
-              Transform your cherished moments into immersive three-dimensional experiences. 
-              Step into your photos and explore them like never before.
+              {getStageText(showStyles, showUpload)}
             </HeroSubtitle>
             <AnimatePresence mode="wait">
-              {!showUpload ? (
+              {!showStyles && !showUpload ? (
                 <StyledButton
                   key="get-started"
-                  onClick={() => setShowUpload(true)}
+                  onClick={handleGetStarted}
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
                 >
                   Get Started
                 </StyledButton>
+              ) : showStyles ? (
+                <StyleSelectionContainer
+                  key="style-selection"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <StyleButton
+                    onClick={() => handleStyleSelect('photorealistic')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="icon">📸</span>
+                    <span className="title">Photorealistic</span>
+                    <span className="description">Ultra-realistic 3D conversion</span>
+                  </StyleButton>
+                  <StyleButton
+                    onClick={() => handleStyleSelect('painting')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="icon">🎨</span>
+                    <span className="title">Oil Canvas</span>
+                    <span className="description">Artistic painting style</span>
+                  </StyleButton>
+                  <StyleButton
+                    onClick={() => handleStyleSelect('cyberpunk')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="icon">🌆</span>
+                    <span className="title">Cyberpunk</span>
+                    <span className="description">Futuristic neon aesthetic</span>
+                  </StyleButton>
+                </StyleSelectionContainer>
               ) : (
                 <UploadSection
                   key="upload-section"
@@ -710,12 +842,12 @@ const LandingPage: React.FC = () => {
                 >
                   <TextInput
                     type="text"
-                    placeholder="Give us your imagination..."
-                    value={imagination}
-                    onChange={(e) => setImagination(e.target.value)}
+                    placeholder="Enter a prompt or upload an image..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
                   />
                   <FileUploadButton>
-                    {selectedFile ? selectedFile.name : 'Choose an image'}
+                    {selectedFile ? selectedFile.name : 'Or choose an image'}
                     <input
                       type="file"
                       accept="image/*"
@@ -727,7 +859,7 @@ const LandingPage: React.FC = () => {
                     variants={buttonVariants}
                     whileHover="hover"
                     whileTap="tap"
-                    disabled={!selectedFile}
+                    disabled={!selectedStyle || (!selectedFile && !prompt)}
                   >
                     Transform
                   </StyledButton>
