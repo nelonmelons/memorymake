@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SecondaryButton } from "../components/Button";
 import { Container, pageTransition, PageContainer } from "../components/Container";
 import ThreeScene from "../components/ThreeScene";
-import { FiMaximize2, FiZoomIn, FiZoomOut, FiFolder, FiMenu, FiX, FiBarChart2, FiMove } from 'react-icons/fi';
+import { FiMaximize2, FiZoomIn, FiZoomOut, FiFolder, FiMenu, FiX, FiBarChart2, FiMove, FiImage } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 
 // Add interfaces for styled components
@@ -385,7 +385,13 @@ const HistoryItem = styled(motion.div)`
   }
 `;
 
+const NavButtonDate = styled.span`
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+`;
+
 const ThreeDemo: React.FC = () => {
+  const [fileUrl, setFileUrl] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isModelLoading, setIsModelLoading] = useState(true);
@@ -400,7 +406,7 @@ const ThreeDemo: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
 
   const location = useLocation();
-  const { fileUrl, loadingState } = location.state || {};
+  const { loadingState } = location.state || {};
 
   const [recentModels] = useState([
     { name: 'Living Room Panorama', date: '2024-01-27' },
@@ -493,6 +499,11 @@ const ThreeDemo: React.FC = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleModelClick = (modelPath: string) => {
+    setShowUpload(false);
+    setFileUrl(`/models/${modelPath}`);
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -571,24 +582,36 @@ const ThreeDemo: React.FC = () => {
               </NavSection>
 
               <NavSection>
-                <SectionTitle>Recent Models</SectionTitle>
-                <HistoryList>
-                  {recentModels.map((model, index) => (
-                    <HistoryItem
-                      key={index}
-                      whileHover={{ x: 5 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <FiFolder />
-                      <div>
-                        <div style={{ fontSize: '0.9rem' }}>{model.name}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>
-                          {model.date}
-                        </div>
-                      </div>
-                    </HistoryItem>
-                  ))}
-                </HistoryList>
+                <SectionTitle>RECENT MODELS</SectionTitle>
+                <NavButton
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  onClick={() => handleModelClick('denauny_panorama.obj')}
+                >
+                  <FiImage /> Living Room Panorama
+                  <NavButtonDate>2024-01-27</NavButtonDate>
+                </NavButton>
+
+                <NavButton
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  onClick={() => handleModelClick('denauny_panorama.obj')}
+                >
+                  <FiImage /> Kitchen View
+                  <NavButtonDate>2024-01-26</NavButtonDate>
+                </NavButton>
+
+                <NavButton
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  onClick={() => handleModelClick('denauny_panorama.obj')}
+                >
+                  <FiImage /> Bedroom Scene
+                  <NavButtonDate>2024-01-25</NavButtonDate>
+                </NavButton>
               </NavSection>
 
               <DashboardSection>
