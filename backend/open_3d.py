@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 from scipy.spatial import Delaunay
 from midas_depth_map import midas_main
-from backend.root_scale import sigmoid_scaling
+from root_scale import root_scaling
 
 @DeprecationWarning
 def compute_point_cloud(color_image_path, scale=1.5):
@@ -100,7 +100,7 @@ def cylindrical_projection(color_image_path,
   # Adjust this value to control the effect
     bias = 30
     original_r = (np.max(depth_raw) - depth_raw) * 10
-    r = sigmoid_scaling(original_r)
+    r = root_scaling(original_r)
     # r = (np.max(depth_raw) - depth_raw) * 10
     valid_mask = r > 0  # Mask to skip invalid or zero depth
 
@@ -218,7 +218,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "assets/berkeley-castle-panorama.jpg"
+    color_image_path = "assets/japan.png"
     depth_image_path = "assets/panorama_depth.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
