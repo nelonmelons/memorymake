@@ -100,10 +100,12 @@ def apply_style_transfer(content_image_path, style_image_path):
     output_image = tensor_to_image(stylized_image)
 
     # Display the result
-    display_image(output_image, title="Stylized Image")
+    # display_image(output_image, title="Stylized Image")
 
     # Save the output image
-    output_image.save('output.jpg')
+    # output_image.save("output.jpg")
+    output_image.save(content_image_path)
 
-# Example usage (adjust the paths to your images)
-apply_style_transfer('assets/osakatest.png', 'nst_styles/cubism.jpg')
+if __name__ == '__main__':
+    # Example usage (adjust the paths to your images)
+    apply_style_transfer('assets/osakatest.png', 'nst_styles/cubism.jpg')

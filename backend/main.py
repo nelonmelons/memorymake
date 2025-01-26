@@ -6,6 +6,7 @@ import shutil
 import asyncio, time
 from open_3d import open_3d_main
 import stable_diffusion
+from neural_style_transfer import apply_style_transfer
 
 app = FastAPI()
 
@@ -57,6 +58,11 @@ async def upload_file(file: UploadFile = File(...)):
         await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
         print('Processing complete.')
 
+        # Clean up the uploaded file after processing
+        if os.path.exists(file_location):
+            os.remove(file_location)
+            print(f"Cleaned up uploaded file: {file_location}")
+
         return FileResponse(output_filename, media_type='application/octet-stream', filename=unique_file_first + '.obj')
     except Exception as e:
         return {"error": str(e)}, 500
@@ -65,7 +71,7 @@ async def upload_file(file: UploadFile = File(...)):
 async def generate_from_prompt(obj: dict):
     try:
         prompt = obj.get("prompt")
-        style = obj.get("style")
+        style = obj.get("style").lower()
         if not prompt or not style:
             return {"error": "Prompt and style are required"}, 400
 
@@ -74,18 +80,22 @@ async def generate_from_prompt(obj: dict):
         save_image_path = f"uploads/generated_{file_id}.png"
         output_filename = f"rendered/generated_{file_id}.obj"
 
-        print(f"Prompt: {prompt}, type: {type(prompt)}")
-        print(f"Style: {style}, type: {type(style)}")
-        print(f"Save Image Path: {save_image_path}, type: {type(save_image_path)}")
-        print(f"Output Filename: {output_filename}, type: {type(output_filename)}")
-
         # Invoke the stable diffusion function
         stable_diffusion.generate_image(prompt, style, save_image_path)
         print(f"Image saved at: {save_image_path}")
 
+        if style != "photorealistic":
+            apply_style_transfer(save_image_path, f"nst_styles/{style}.jpg")
+            print("Style transfer complete.")
+
         # Process the image to generate 3D object
         await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename)
         print(f"Processing complete. OBJ saved at: {output_filename}")
+
+        # Clean up the generated image file after processing
+        if os.path.exists(save_image_path):
+            os.remove(save_image_path)
+            print(f"Cleaned up image file: {save_image_path}")
 
         return FileResponse(output_filename, media_type='application/octet-stream', filename=f"generated_{file_id}.obj")
     except Exception as e:
@@ -97,13 +107,6 @@ async def get_rendered_file(file_name: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
     return {"error": "File not found"}, 404
-
-
-@app.post("/test")
-async def baka(file: UploadFile = File(...)):  # Assuming `var` is a JSON payload
-    print('baka')
-    await asyncio.sleep(60)  # Asynchronous sleep
-    return {"message": "baka"}
 
 # if __name__ == "__main__":
 #     import uvicorn
