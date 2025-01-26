@@ -242,7 +242,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "assets/panorama.jpg"
-    depth_image_path = "assets/panorama_depth.png"
+    color_image_path = "generated_sdxl.png"
+    depth_image_path = "panorama_depth.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)

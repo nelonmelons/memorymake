@@ -207,7 +207,7 @@ def visualize_depth_map(depth_map_normalized):
     # Save as grayscale image
     
     plt.imshow(depth_map_normalized, cmap='plasma')
-    plt.savefig("depth_map_dog.png")
+    plt.savefig("depth_map.png")
     plt.colorbar()
     plt.title("Normalized Depth Map (Colormapped)")
     plt.show()
