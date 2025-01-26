@@ -245,7 +245,7 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
-    # visualize_depth_map(depth_map_normalized)
+    visualize_depth_map(depth_map_normalized)
 
     # Optional: Visualize depth map
     # image_np = np.array(image)

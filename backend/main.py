@@ -53,7 +53,6 @@ async def upload_file(file: UploadFile = File(...)):
 
         # Process the file (dummy processing step here)
         # Imagine calling a function like `process_image_to_3d(file_location)`
-        print('file_location ', file_location)
         output_filename = f"rendered/output_{unique_file_first}.obj"
         await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
         print('Processing complete.')

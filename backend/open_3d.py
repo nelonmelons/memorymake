@@ -4,6 +4,7 @@ import cv2
 from scipy.spatial import Delaunay
 from midas_depth_map import midas_main
 from root_scale import root_scaling
+from cylinder import create_cylindrical_mesh
 
 @DeprecationWarning
 def compute_point_cloud(color_image_path, scale=1.5):
@@ -61,7 +62,7 @@ def compute_point_cloud(color_image_path, scale=1.5):
 
 
 def cylindrical_projection(color_image_path, 
-                          depth_scale_factor=1.0, vertical_scale=1.0):
+                          depth_scale_factor=1.0, vertical_scale=0.7):
     """
     Convert a panoramic color + depth image into a point cloud wrapped in cylindrical space.
 
@@ -99,7 +100,7 @@ def cylindrical_projection(color_image_path,
     # Loop through each pixel in the panorama
   # Adjust this value to control the effect
     bias = 30
-    original_r = (np.max(depth_raw) - depth_raw) * 10
+    original_r = (np.max(depth_raw) - depth_raw + bias) * 10
     r = root_scaling(original_r)
     # r = (np.max(depth_raw) - depth_raw) * 10
     valid_mask = r > 0  # Mask to skip invalid or zero depth
@@ -153,9 +154,6 @@ def cylindrical_projection(color_image_path,
     pcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30)
     )
-    print('beffore orient')
-    # pcd.orient_normals_consistent_tangent_plane(30)
-    print('after orient normals')
 
     return pcd
 
@@ -164,25 +162,27 @@ def delauny_method(pcd, save_path=None):
     # Extract points from the point cloud
     points = np.asarray(pcd.points)
     print('after points, before triangulation')
+
+
     # Perform Delaunay triangulation
     triangulation = Delaunay(points[:, :2])  # Perform Delaunay triangulation in 2D (xy-plane)
-    # For 3D, you may need to use a more sophisticated triangulation method like Delaunay in 3D
-    # triangulation = Delaunay(points) # This can be computationally expensive for large datasets
+    # # For 3D, you may need to use a more sophisticated triangulation method like Delaunay in 3D
+    # # triangulation = Delaunay(points) # This can be computationally expensive for large datasets
 
-    # Convert Delaunay triangulation to a mesh
+
     vertices = points
     triangles = triangulation.simplices  # The simplices (triangles) from Delaunay
-    print('beginning loading mesh')
-    # Create the mesh using Open3D
+
+    # # Create the mesh using Open3D
     mesh = o3d.geometry.TriangleMesh()
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
     mesh.triangles = o3d.utility.Vector3iVector(triangles)
     print('finish loading mesh')
-    # Optionally, compute vertex normals
+    # # Optionally, compute vertex normals
     mesh = mesh.simplify_vertex_clustering(voxel_size=0.5)
     mesh.compute_vertex_normals()
 
-    # Assign colors from point cloud to mesh vertices
+    # # Assign colors from point cloud to mesh vertices
     pcd_tree = o3d.geometry.KDTreeFlann(pcd)
     mesh_colors = []
     for v in mesh.vertices:
@@ -190,18 +190,18 @@ def delauny_method(pcd, save_path=None):
         nearest_color = pcd.colors[idx[0]]
         mesh_colors.append(nearest_color)
 
-    # Assign vertex colors to the mesh
+    # # Assign vertex colors to the mesh
     mesh.vertex_colors = o3d.utility.Vector3dVector(mesh_colors)
 
-    # Smooth the mesh (optional)
-    print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
-    mesh.filter_smooth_laplacian(number_of_iterations=10)
-    print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
+    # # Smooth the mesh (optional)
+    # print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
+    # mesh.filter_smooth_laplacian(number_of_iterations=10)
+    # print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
 
-    # Flip the orientation of the mesh by reversing the order of the triangles (if necessary)
+    # # Flip the orientation of the mesh by reversing the order of the triangles (if necessary)
     mesh.triangles = o3d.utility.Vector3iVector(np.asarray(mesh.triangles)[..., ::-1])
 
-    # Recompute vertex normals after flipping the triangles
+    # # Recompute vertex normals after flipping the triangles
     mesh.compute_vertex_normals()
 
     if save_path:
@@ -209,7 +209,7 @@ def delauny_method(pcd, save_path=None):
         print(f"Mesh saved to {save_path}")
 
     # Visualize the mesh
-    o3d.visualization.draw_geometries([mesh])
+    # o3d.visualization.draw_geometries([mesh])
         
 
 def open_3d_main(color_image_path, save_path, scale=1.5):
@@ -218,7 +218,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "assets/japan.png"
+    color_image_path = "assets/jet2.png"
     depth_image_path = "assets/panorama_depth.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
