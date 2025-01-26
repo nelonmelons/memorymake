@@ -224,6 +224,77 @@ const HeroSection = styled.div`
   margin: 0;
 `;
 
+const HighlightedText = styled.span`
+  font-family: 'Audiowide', sans-serif;
+  color: #00ffff;
+  position: relative;
+  display: inline-block;
+  text-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.4),
+    0 0 15px rgba(0, 255, 255, 0.2),
+    0 0 20px rgba(0, 255, 255, 0.1);
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  animation: cyberPulse 3s ease-in-out infinite;
+  transform-style: preserve-3d;
+  
+  &::before,
+  &::after {
+    content: 'Memories';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    color: #00ffff;
+    z-index: -1;
+  }
+
+  &::before {
+    text-shadow: -1px 0 rgba(0, 255, 255, 0.5);
+    animation: glitchLeft 2s infinite linear alternate-reverse;
+  }
+
+  &::after {
+    text-shadow: 1px 0 rgba(64, 224, 208, 0.5);
+    animation: glitchRight 3s infinite linear alternate-reverse;
+  }
+
+  @keyframes cyberPulse {
+    0%, 100% {
+      text-shadow: 
+        0 0 8px rgba(0, 255, 255, 0.4),
+        0 0 15px rgba(0, 255, 255, 0.2),
+        0 0 20px rgba(0, 255, 255, 0.1);
+    }
+    50% {
+      text-shadow: 
+        0 0 10px rgba(0, 255, 255, 0.5),
+        0 0 20px rgba(0, 255, 255, 0.3),
+        0 0 25px rgba(0, 255, 255, 0.2);
+    }
+  }
+
+  @keyframes glitchLeft {
+    0% {
+      transform: translate3d(-2px, 2px, 0);
+    }
+    100% {
+      transform: translate3d(2px, -2px, 0);
+    }
+  }
+
+  @keyframes glitchRight {
+    0% {
+      transform: translate3d(2px, -2px, 0);
+    }
+    100% {
+      transform: translate3d(-2px, 2px, 0);
+    }
+  }
+`;
+
 const HeroTitle = styled(motion.h1)`
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
@@ -235,7 +306,6 @@ const HeroTitle = styled(motion.h1)`
     #ffffff 50%,
     #ff99ff 100%
   );
-  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8))
@@ -519,22 +589,22 @@ const Sun = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   background: radial-gradient(circle at 30% 30%, #ffd700, #ff4500);
   border-radius: 50%;
   box-shadow: 
-    0 0 80px rgba(255, 215, 0, 0.4),
-    0 0 120px rgba(255, 69, 0, 0.3);
+    0 0 60px rgba(255, 215, 0, 0.4),
+    0 0 100px rgba(255, 69, 0, 0.3);
   z-index: 1;
   
   &::after {
     content: '';
     position: absolute;
-    top: -30px;
-    left: -30px;
-    right: -30px;
-    bottom: -30px;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
     border-radius: 50%;
     background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3), transparent 70%);
     animation: pulse 4s ease-in-out infinite;
@@ -578,12 +648,89 @@ const Planet = styled.div<{ $size: number; $orbitSize: number; $speed: number; $
   }
 `;
 
+const LoadingOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  max-width: 400px;
+  width: 90%;
+`;
+
+const LoadingBar = styled.div`
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background: linear-gradient(
+      90deg,
+      #00ffff,
+      #ff00ff,
+      #00ffff
+    );
+    background-size: 200% 100%;
+    animation: moveGradient 2s linear infinite;
+    transition: width 0.3s ease;
+  }
+
+  @keyframes moveGradient {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+`;
+
+const LoadingText = styled(motion.div)`
+  color: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+`;
+
+const LoadingPercentage = styled(motion.div)`
+  color: #00ffff;
+  font-size: 3rem;
+  font-weight: bold;
+  font-family: 'Audiowide', sans-serif;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.3);
+`;
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
   const [imagination, setImagination] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -591,29 +738,67 @@ const LandingPage: React.FC = () => {
     }
   };
 
+  const updateLoadingProgress = async () => {
+    const texts = [
+      'Analyzing image...',
+      'Generating depth map...',
+      'Creating 3D mesh...',
+      'Applying textures...',
+      'Finalizing model...'
+    ];
+    
+    for (let i = 0; i <= 100; i += 2) {
+      if (!isLoading) break; // Stop if loading is cancelled
+      setLoadingProgress(i);
+      if (i % 20 === 0) {
+        setLoadingText(texts[Math.floor(i / 20)]);
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedFile) return;
+    
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingText('Preparing transformation...');
     
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('imagination', imagination);
     
     try {
+      updateLoadingProgress(); // Start progress animation
+
       const response = await fetch('http://localhost:8000/upload', {
         method: 'POST',
         body: formData,
       });
+      
       if (!response.ok) throw new Error('Upload failed');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
-      // Save the URL in state and navigate to the new page
       setFileUrl(url);
-      navigate('/three-demo', { state: { fileUrl: url } });
-
+      
+      // Navigate to ThreeDemo while maintaining loading state
+      navigate('/three-demo', { 
+        state: { 
+          fileUrl: url,
+          loadingState: {
+            isLoading: true,
+            progress: loadingProgress,
+            text: loadingText
+          }
+        } 
+      });
     } catch (error) {
       console.error('Upload failed:', error);
+      setLoadingText('Error: Upload failed. Please try again.');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -677,7 +862,7 @@ const LandingPage: React.FC = () => {
                 transition: { duration: 3, repeat: Infinity }
               }}
             >
-              Relive your memories in 3D
+              Relive your <HighlightedText>Memories</HighlightedText> in 3D
             </HeroTitle>
             <HeroSubtitle
               variants={subtitleVariants}
@@ -737,6 +922,33 @@ const LandingPage: React.FC = () => {
           </Content>
         </HeroSection>
       </Container>
+      <AnimatePresence>
+        {isLoading && (
+          <LoadingOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <LoadingContainer>
+              <LoadingText
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {loadingText}
+              </LoadingText>
+              <LoadingBar style={{ '--progress': `${loadingProgress}%` } as any} />
+              <LoadingPercentage
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+              >
+                {loadingProgress}%
+              </LoadingPercentage>
+            </LoadingContainer>
+          </LoadingOverlay>
+        )}
+      </AnimatePresence>
     </PageContainer>
   );
 };
