@@ -78,7 +78,6 @@ def save_depth_values_as_image(depth_array, output_path="panorama_depth.png"):
         output_path (str): Path to save the image.
     """
     # Convert the array to 16-bit to preserve precision (scaled by 1 to avoid changes)
-    print(depth_array)
     depth_array_16bit = depth_array.astype(np.uint16)
     
     # Save as a 16-bit PNG
@@ -214,7 +213,7 @@ def visualize_depth_map(depth_map_normalized):
     plt.show()
 
 
-def main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
+def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
     """
     Main function to process the image and generate the 3D mesh.
     
@@ -243,17 +242,12 @@ def main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path=
 
 # Convert numpy.ndarray (OpenCV image) to PIL.Image
     image = Image.fromarray(image)
-    print(f"Image {input_image_path} loaded.")
 
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
-    print(f'Depth map estimated with shape {depth_map.shape}.')
     # save_depth_map_as_png(depth_map_normalized)
-    save_depth_values_as_image(depth_map)
 
     # Optional: Visualize depth map
-
-    visualize_depth_map(depth_map_normalized)
     # image_np = np.array(image)
     # # Create point cloud
     # pcd = create_point_cloud(image_np, depth_map)
@@ -271,6 +265,7 @@ def main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path=
 
     # # Save mesh
     # save_mesh(mesh, output_mesh_path)
+    return depth_map
 
 if __name__ == "__main__":
     import argparse
@@ -282,4 +277,4 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="models/midas/dpt_large-midas-2f21e586.pt", help="Path to the downloaded MiDaS model weights")
     args = parser.parse_args()
 
-    main(args.input, args.output, model_type=args.model_type, model_path=args.model_path)
+    midas_main(args.input, args.output, model_type=args.model_type, model_path=args.model_path)

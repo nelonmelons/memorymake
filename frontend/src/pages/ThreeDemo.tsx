@@ -5,6 +5,7 @@ import { SecondaryButton } from "../components/Button";
 import { Container, pageTransition, PageContainer } from "../components/Container";
 import ThreeScene from "../components/ThreeScene";
 import { FiMaximize2, FiZoomIn, FiZoomOut, FiFolder, FiMenu, FiX, FiBarChart2, FiMove } from 'react-icons/fi';
+import { useLocation } from 'react-router-dom';
 
 // Add interfaces for styled components
 interface ToggleSidebarButtonProps {
@@ -397,6 +398,11 @@ const ThreeDemo: React.FC = () => {
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isPanning, setIsPanning] = useState(false);
+
+  const location = useLocation();
+  const { fileUrl } = location.state || {};
+
+
   const [recentModels] = useState([
     { name: 'Living Room Panorama', date: '2024-01-27' },
     { name: 'Kitchen View', date: '2024-01-26' },
@@ -492,6 +498,10 @@ const ThreeDemo: React.FC = () => {
   useEffect(() => {
     return () => {
       clearStatusTimeout();
+      if (fileUrl) {
+          URL.revokeObjectURL(fileUrl);
+          console.log('Blob URL cleaned up!');
+      }
     };
   }, []);
 
@@ -607,7 +617,7 @@ const ThreeDemo: React.FC = () => {
 
         <ViewerContainer isSidebarOpen={isSidebarOpen}>
           <ThreeScene 
-            objUrl="/models/denauny_panorama.obj"
+            objUrl={fileUrl} // place holder right now
             onLoadProgress={handleLoadProgress}
             onLoadError={handleLoadError}
             onLoadComplete={handleLoadComplete}

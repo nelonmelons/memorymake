@@ -2,15 +2,19 @@ import open3d as o3d
 import numpy as np
 import cv2
 from scipy.spatial import Delaunay
+from midas_depth_map import midas_main
 
-def compute_point_cloud(color_image_path, depth_image_path, scale=1.5):
+@DeprecationWarning
+def compute_point_cloud(color_image_path, scale=1.5):
 
     color_raw = cv2.imread(color_image_path, cv2.IMREAD_COLOR)  # Shape: (H, W, 3)
-    depth_raw = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)
+    # depth_raw = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)
+    depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
 
     color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
 
     depth_raw = depth_raw.astype(np.float32)
+
     depth_raw = depth_raw + (np.max(depth_raw) - depth_raw) * scale # Arbitrary and experimental
 
     # color_raw = transformations.cylindrical_projection(color_raw)
@@ -53,7 +57,7 @@ def compute_point_cloud(color_image_path, depth_image_path, scale=1.5):
 
 
 
-def cylindrical_projection(color_image_path, depth_image_path,
+def cylindrical_projection(color_image_path, 
                           depth_scale_factor=1.0, vertical_scale=1.0):
     """
     Convert a panoramic color + depth image into a point cloud wrapped in cylindrical space.
@@ -71,7 +75,8 @@ def cylindrical_projection(color_image_path, depth_image_path,
 
     # Load images with OpenCV
     color_raw = cv2.imread(color_image_path, cv2.IMREAD_COLOR)   # BGR
-    depth_raw = cv2.imread(depth_image_path, cv2.IMREAD_UNCHANGED)
+    depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
+
 
     # Convert BGR -> RGB for Open3D consistency
     color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
@@ -230,15 +235,14 @@ def delauny_method(pcd, save_path=None):
         o3d.io.write_triangle_mesh(save_path, mesh)
         print(f"Mesh saved to {save_path}")
         
-    # Visualize the final mesh
-    o3d.visualization.draw_geometries([mesh])
 
-def main(color_image_path, depth_image_path, save_path, scale=1.5):
-    pcd = cylindrical_projection(color_image_path, depth_image_path, depth_scale_factor=scale)
+def open_3d_main(color_image_path, save_path, scale=1.5):
+    pcd = cylindrical_projection(color_image_path, depth_scale_factor=scale)
     delauny_method(pcd, save_path=save_path)
+    return None
 
 if __name__ == "__main__":
     color_image_path = "assets/panorama.jpg"
     depth_image_path = "assets/panorama_depth.png"
     save_path = "panorama_mesh.obj"
-    main(color_image_path, depth_image_path, save_path, scale=1.0)
+    open_3d_main(color_image_path, save_path, scale=1.0)
