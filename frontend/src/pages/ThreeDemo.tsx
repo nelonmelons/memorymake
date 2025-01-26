@@ -388,7 +388,7 @@ const HistoryItem = styled(motion.div)`
 const ThreeDemo: React.FC = () => {
   const [status, setStatus] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(true);
   const [imagination, setImagination] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -400,8 +400,7 @@ const ThreeDemo: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
 
   const location = useLocation();
-  const { fileUrl } = location.state || {};
-
+  const { fileUrl, loadingState } = location.state || {};
 
   const [recentModels] = useState([
     { name: 'Living Room Panorama', date: '2024-01-27' },
@@ -428,20 +427,20 @@ const ThreeDemo: React.FC = () => {
   };
 
   const handleLoadProgress = useCallback((progress: number) => {
-    if (!isLoading) return;
     setLoadingProgress(progress);
-    setStatusWithTimeout(`Loading: ${Math.round(progress)}%`, 0);
-  }, [isLoading]);
-
-  const handleLoadError = useCallback((error: string) => {
-    setIsLoading(false);
-    setStatusWithTimeout(`Error: ${error}`);
+    setStatus(`Loading model: ${Math.round(progress)}%`);
   }, []);
 
   const handleLoadComplete = useCallback(() => {
-    setIsLoading(false);
+    setIsModelLoading(false);
     setLoadingProgress(100);
-    setStatusWithTimeout('Model loaded successfully');
+    setStatus('Model loaded successfully');
+    setShowUpload(false);
+  }, []);
+
+  const handleLoadError = useCallback((error: string) => {
+    setIsModelLoading(false);
+    setStatus(`Error: ${error}`);
   }, []);
 
   const toggleFullscreen = () => {
@@ -473,7 +472,7 @@ const ThreeDemo: React.FC = () => {
     formData.append('imagination', imagination);
     
     try {
-      setIsLoading(true);
+      setIsModelLoading(true);
       const response = await fetch('http://localhost:8000/upload', {
         method: 'POST',
         body: formData,
@@ -486,7 +485,7 @@ const ThreeDemo: React.FC = () => {
     } catch (error) {
       setStatusWithTimeout('Upload failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsModelLoading(false);
     }
   };
 
@@ -617,7 +616,7 @@ const ThreeDemo: React.FC = () => {
 
         <ViewerContainer isSidebarOpen={isSidebarOpen}>
           <ThreeScene 
-            objUrl={fileUrl} // place holder right now
+            objUrl={fileUrl}
             onLoadProgress={handleLoadProgress}
             onLoadError={handleLoadError}
             onLoadComplete={handleLoadComplete}
@@ -641,16 +640,16 @@ const ThreeDemo: React.FC = () => {
             </FileUploadButton>
             <SubmitButton
               onClick={handleSubmit}
-              disabled={!selectedFile || isLoading}
+              disabled={!selectedFile || isModelLoading}
               whileTap={{ scale: 0.98 }}
             >
-              {isLoading ? 'Uploading...' : 'Transform'}
+              {isModelLoading ? 'Uploading...' : 'Transform'}
             </SubmitButton>
           </UploadContainer>
           <StatusText className={status ? "visible" : ""}>
             {status}
           </StatusText>
-          <LoadingContainer isLoading={isLoading}>
+          <LoadingContainer isLoading={isModelLoading}>
             <LoadingBar progress={loadingProgress} />
             <LoadingText>Loading Model... {Math.round(loadingProgress)}%</LoadingText>
           </LoadingContainer>

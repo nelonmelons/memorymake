@@ -782,12 +782,17 @@ const LandingPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       setFileUrl(url);
       
-      // Ensure we show 100% before navigating
-      setLoadingProgress(100);
-      setLoadingText('Transformation complete!');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      navigate('/three-demo', { state: { fileUrl: url } });
+      // Navigate to ThreeDemo while maintaining loading state
+      navigate('/three-demo', { 
+        state: { 
+          fileUrl: url,
+          loadingState: {
+            isLoading: true,
+            progress: loadingProgress,
+            text: loadingText
+          }
+        } 
+      });
     } catch (error) {
       console.error('Upload failed:', error);
       setLoadingText('Error: Upload failed. Please try again.');
