@@ -4,6 +4,7 @@ import cv2
 from scipy.spatial import Delaunay
 from midas_depth_map import midas_main
 from transformations import root_scaling
+from neural_style_transfer import apply_style_transfer_from_array
 
 @DeprecationWarning
 def compute_point_cloud(color_image_path, scale=1.5):
@@ -58,7 +59,9 @@ def compute_point_cloud(color_image_path, scale=1.5):
 
 
 def cylindrical_projection(color_image_path, 
-                          depth_scale_factor=1.0, vertical_scale=1.0):
+                          depth_scale_factor=1.0, 
+                          vertical_scale=1.0,
+                          style=None):
     """
     Convert a panoramic color + depth image into a point cloud wrapped in cylindrical space.
 
@@ -75,12 +78,19 @@ def cylindrical_projection(color_image_path,
 
     # Load images with OpenCV
     color_raw = cv2.imread(color_image_path, cv2.IMREAD_COLOR)   # BGR
+    # Convert BGR -> RGB for Open3D consistency
+    color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
+
+    # apply style if applicable using neural_style_transfer.py
+    if style is not None and style != "photorealistic":
+        styled_path = apply_style_transfer_from_array(color_raw, style)
+        color_raw = cv2.imread(styled_path, cv2.IMREAD_COLOR)
+        color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
+
     depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
     print('midas done')
 
-
-    # Convert BGR -> RGB for Open3D consistency
-    color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
+    print(color_raw.shape, depth_raw.shape)
 
     # Convert depth to float; apply any scaling if needed
     depth_raw = depth_raw.astype(np.float32) * depth_scale_factor
@@ -94,7 +104,7 @@ def cylindrical_projection(color_image_path,
     half_h = height / 2.0
 
     # Loop through each pixel in the panorama
-  # Adjust this value to control the effect
+    # Adjust this value to control the effect
     bias = 30
     original_r = (np.max(depth_raw) - depth_raw) * 10
     r = root_scaling(original_r)
@@ -115,7 +125,7 @@ def cylindrical_projection(color_image_path,
     
     exceed_mask = (theta < -theta_max) | (theta > theta_max)  # Logical OR for exceeding values
 
-# Print the exceeding theta values
+    # Print the exceeding theta values
     exceeding_thetas = theta[exceed_mask]
     print("Theta values exceeding the limits:", exceeding_thetas)
 
@@ -205,16 +215,16 @@ def delauny_method(pcd, save_path=None):
         print(f"Mesh saved to {save_path}")
 
     # Visualize the mesh
-    #o3d.visualization.draw_geometries([mesh])
+    # o3d.visualization.draw_geometries([mesh])
         
 
-def open_3d_main(color_image_path, save_path, scale=1.5):
-    pcd = cylindrical_projection(color_image_path, depth_scale_factor=scale)
+def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
+    pcd = cylindrical_projection(color_image_path, depth_scale_factor=scale, style=style)
     delauny_method(pcd, save_path=save_path)
     return None
 
 if __name__ == "__main__":
-    color_image_path = "output.jpg"
+    color_image_path = "assets/farm.png"
     depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
