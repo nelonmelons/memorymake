@@ -435,8 +435,8 @@ const FileUploadButton = styled.label`
 `;
 
 const StyledButton = styled(motion(Button))`
-  font-size: 0.9rem;
-  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  padding: 1rem 2.5rem;
   background: linear-gradient(
     135deg,
     #ff00ff 0%,
@@ -922,7 +922,7 @@ const LandingPage: React.FC = () => {
       if (!isLoading) break; // Stop if loading is cancelled
       setLoadingProgress(i);
       if (i % 20 === 0) {
-        setLoadingText(texts[Math.floor(i / 20)]);
+        setLoadingStage(texts[Math.floor(i / 20)]);
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }

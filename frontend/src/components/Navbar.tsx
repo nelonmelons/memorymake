@@ -65,7 +65,7 @@ const NavLink = styled(Link)`
 const Navbar: React.FC = () => {
   return (
     <NavbarContainer>
-      <Logo to="/">Memory 3D</Logo>
+      <Logo to="/">MemoryMake</Logo>
       <NavLinks>
         <NavLink to="/three-demo">3D Demo</NavLink>
       </NavLinks>
