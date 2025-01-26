@@ -224,6 +224,77 @@ const HeroSection = styled.div`
   margin: 0;
 `;
 
+const HighlightedText = styled.span`
+  font-family: 'Audiowide', sans-serif;
+  color: #00ffff;
+  position: relative;
+  display: inline-block;
+  text-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.4),
+    0 0 15px rgba(0, 255, 255, 0.2),
+    0 0 20px rgba(0, 255, 255, 0.1);
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  animation: cyberPulse 3s ease-in-out infinite;
+  transform-style: preserve-3d;
+  
+  &::before,
+  &::after {
+    content: 'Memories';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    color: #00ffff;
+    z-index: -1;
+  }
+
+  &::before {
+    text-shadow: -1px 0 rgba(0, 255, 255, 0.5);
+    animation: glitchLeft 2s infinite linear alternate-reverse;
+  }
+
+  &::after {
+    text-shadow: 1px 0 rgba(64, 224, 208, 0.5);
+    animation: glitchRight 3s infinite linear alternate-reverse;
+  }
+
+  @keyframes cyberPulse {
+    0%, 100% {
+      text-shadow: 
+        0 0 8px rgba(0, 255, 255, 0.4),
+        0 0 15px rgba(0, 255, 255, 0.2),
+        0 0 20px rgba(0, 255, 255, 0.1);
+    }
+    50% {
+      text-shadow: 
+        0 0 10px rgba(0, 255, 255, 0.5),
+        0 0 20px rgba(0, 255, 255, 0.3),
+        0 0 25px rgba(0, 255, 255, 0.2);
+    }
+  }
+
+  @keyframes glitchLeft {
+    0% {
+      transform: translate3d(-2px, 2px, 0);
+    }
+    100% {
+      transform: translate3d(2px, -2px, 0);
+    }
+  }
+
+  @keyframes glitchRight {
+    0% {
+      transform: translate3d(2px, -2px, 0);
+    }
+    100% {
+      transform: translate3d(-2px, 2px, 0);
+    }
+  }
+`;
+
 const HeroTitle = styled(motion.h1)`
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
@@ -835,6 +906,25 @@ const LandingPage: React.FC = () => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const updateLoadingProgress = async () => {
+    const texts = [
+      'Analyzing image...',
+      'Generating depth map...',
+      'Creating 3D mesh...',
+      'Applying textures...',
+      'Finalizing model...'
+    ];
+    
+    for (let i = 0; i <= 100; i += 2) {
+      if (!isLoading) break; // Stop if loading is cancelled
+      setLoadingProgress(i);
+      if (i % 20 === 0) {
+        setLoadingText(texts[Math.floor(i / 20)]);
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
   };
 

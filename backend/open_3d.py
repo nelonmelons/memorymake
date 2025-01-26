@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 from scipy.spatial import Delaunay
 from midas_depth_map import midas_main
+from root_scale import root_scaling
 
 @DeprecationWarning
 def compute_point_cloud(color_image_path, scale=1.5):
@@ -56,7 +57,6 @@ def compute_point_cloud(color_image_path, scale=1.5):
     return pcd
 
 
-
 def cylindrical_projection(color_image_path, 
                           depth_scale_factor=1.0, vertical_scale=1.0):
     """
@@ -76,6 +76,7 @@ def cylindrical_projection(color_image_path,
     # Load images with OpenCV
     color_raw = cv2.imread(color_image_path, cv2.IMREAD_COLOR)   # BGR
     depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
+    print('midas done')
 
 
     # Convert BGR -> RGB for Open3D consistency
@@ -93,40 +94,58 @@ def cylindrical_projection(color_image_path,
     half_h = height / 2.0
 
     # Loop through each pixel in the panorama
-    for y in range(height):
-        for x in range(width):
-            r = (np.max(depth_raw) - depth_raw[y, x]) * 10
-            # Skip invalid or zero depth
-            if r <= 0:
-                continue
+  # Adjust this value to control the effect
+    bias = 30
+    original_r = (np.max(depth_raw) - depth_raw) * 10
+    r = root_scaling(original_r)
+    # r = (np.max(depth_raw) - depth_raw) * 10
+    valid_mask = r > 0  # Mask to skip invalid or zero depth
 
-            # Shift x so the center of the image is x' = 0
-            x_prime = x - half_w
+    # Create a grid of x and y coordinates
+    x = np.arange(width)
+    y = np.arange(height)
+    x_grid, y_grid = np.meshgrid(x, y)
 
-            # Map x' in [-half_w, +half_w] to theta in [-pi/2, +pi/2]
-            theta = (x_prime / half_w) * (np.pi / 2.0)
+    # Shift x and y coordinates to center
+    x_prime = x_grid - half_w
+    y_prime = y_grid - half_h
+    theta_max = np.pi / 2.0
+    # Compute theta and Cartesian coordinates
+    theta = (x_prime / half_w) * (np.pi / 2.0)
+    
+    exceed_mask = (theta < -theta_max) | (theta > theta_max)  # Logical OR for exceeding values
 
-            # Convert to Cartesian, where theta=0 is forward (+Z)
-            X = r * np.sin(theta)  # left-right
-            Z = r * np.cos(theta)  # forward-back
+# Print the exceeding theta values
+    exceeding_thetas = theta[exceed_mask]
+    print("Theta values exceeding the limits:", exceeding_thetas)
 
-            # For vertical, shift row so the middle is Y=0
-            y_prime = y - half_h
-            Y = y_prime * vertical_scale
+    X = r * np.sin(theta)
+    Z = r * np.cos(theta)
+    Y = y_prime * vertical_scale
 
-            points.append([X, Y, Z])
+    # Apply the valid mask
+    X = X[valid_mask]
+    Y = Y[valid_mask]
+    Z = Z[valid_mask]
 
-            # Normalize color to [0, 1]
-            c = color_raw[y, x] / 255.0
-            colors.append(c)
+    # Stack the points into a single array
+    points = np.vstack((X, Y, Z)).T
+
+    # Normalize colors and apply the mask
+    colors = (color_raw / 255.0).reshape(-1, 3)
+    colors = colors[valid_mask.flatten()]
 
     # Convert arrays to Open3D format
     points = np.array(points, dtype=np.float32)
     colors = np.array(colors, dtype=np.float32)
-
+    print('before loading pcd')
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     pcd.colors = o3d.utility.Vector3dVector(colors)
+    print('after loading pcd')
+
+    pcd = pcd.voxel_down_sample(voxel_size=0.1)  # Adjust voxel size as needed
+    
 
     pcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30)
@@ -137,62 +156,10 @@ def cylindrical_projection(color_image_path,
     return pcd
 
 
-def compute_meshes(pcd, save_path=None, visualize=False):
-
-    # Poisson reconstruction
-    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-        pcd,
-        depth=9
-    )
-
-    # Filter low-density vertices
-    dens_thresh = np.quantile(densities, 0.1)  # Remove lowest 10%
-    vertices_to_remove = densities < dens_thresh
-    mesh.remove_vertices_by_mask(vertices_to_remove)
-
-    # Build a KD-tree from the point cloud
-    pcd_tree = o3d.geometry.KDTreeFlann(pcd)
-
-    # Transfer colors from the point cloud to the mesh
-    mesh_colors = []
-    for v in mesh.vertices:
-        # Find nearest neighbor for each mesh vertex in the point cloud
-        [_, idx, _] = pcd_tree.search_knn_vector_3d(v, 1)
-        nearest_color = pcd.colors[idx[0]]
-        mesh_colors.append(nearest_color)
-
-    # Assign vertex colors to the mesh
-    mesh.vertex_colors = o3d.utility.Vector3dVector(mesh_colors)
-
-    # Subdivide the mesh
-    # for _ in range(2):
-    #     mesh_poisson = mesh_poisson.subdivide_loop(number_of_iterations=1)
-
-    # Smooth the mesh
-    print(f"Before smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
-    mesh.filter_smooth_laplacian(number_of_iterations=7)
-    print(f"After smoothing: Vertices = {len(mesh.vertices)}, Faces = {len(mesh.triangles)}")
-
-    # Flip the orientation of the mesh by reversing the order of the triangles
-    mesh.triangles = o3d.utility.Vector3iVector(np.asarray(mesh.triangles)[..., ::-1])
-
-    # Recompute vertex normals after flipping the triangles
-    mesh.compute_vertex_normals()
-
-    # transformations.curve_mesh(mesh_poisson)
-
-    if save_path:
-        o3d.io.write_triangle_mesh(save_path, mesh)
-        print(f"Mesh saved to {save_path}")
-        
-    if visualize:
-        # Visualize the final mesh
-        o3d.visualization.draw_geometries([mesh])
-
 def delauny_method(pcd, save_path=None):
     # Extract points from the point cloud
     points = np.asarray(pcd.points)
-
+    print('after points, before triangulation')
     # Perform Delaunay triangulation
     triangulation = Delaunay(points[:, :2])  # Perform Delaunay triangulation in 2D (xy-plane)
     # For 3D, you may need to use a more sophisticated triangulation method like Delaunay in 3D
@@ -201,13 +168,14 @@ def delauny_method(pcd, save_path=None):
     # Convert Delaunay triangulation to a mesh
     vertices = points
     triangles = triangulation.simplices  # The simplices (triangles) from Delaunay
-
+    print('beginning loading mesh')
     # Create the mesh using Open3D
     mesh = o3d.geometry.TriangleMesh()
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
     mesh.triangles = o3d.utility.Vector3iVector(triangles)
-
+    print('finish loading mesh')
     # Optionally, compute vertex normals
+    mesh = mesh.simplify_vertex_clustering(voxel_size=0.5)
     mesh.compute_vertex_normals()
 
     # Assign colors from point cloud to mesh vertices
@@ -235,6 +203,9 @@ def delauny_method(pcd, save_path=None):
     if save_path:
         o3d.io.write_triangle_mesh(save_path, mesh)
         print(f"Mesh saved to {save_path}")
+
+    # Visualize the mesh
+    o3d.visualization.draw_geometries([mesh])
         
 
 def open_3d_main(color_image_path, save_path, scale=1.5):
@@ -242,7 +213,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5):
     delauny_method(pcd, save_path=save_path)
     return None
 
-if __name__ == "__main__":
+if __name__ == "__main__":=
     color_image_path = "output.jpg"
     depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"

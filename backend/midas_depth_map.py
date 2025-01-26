@@ -212,7 +212,7 @@ def visualize_depth_map(depth_map_normalized):
     ax.set_title("Normalized Depth Map (Colormapped)")
     fig.savefig("depth_map.png")
     plt.close(fig)
-
+    
 
 def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
     """
@@ -246,7 +246,7 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
-    # save_depth_map_as_png(depth_map_normalized)
+    # visualize_depth_map(depth_map_normalized)
 
     # visualize_depth_map(depth_map_normalized)
 
@@ -268,6 +268,7 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 
     # # Save mesh
     # save_mesh(mesh, output_mesh_path)
+
     return depth_map
 
 if __name__ == "__main__":
