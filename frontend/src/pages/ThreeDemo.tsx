@@ -497,10 +497,10 @@ const ThreeDemo: React.FC = () => {
   useEffect(() => {
     return () => {
       clearStatusTimeout();
-      if (fileUrl) {
-          URL.revokeObjectURL(fileUrl);
-          console.log('Blob URL cleaned up!');
-      }
+      // if (fileUrl) {
+      //     URL.revokeObjectURL(fileUrl);
+      //     console.log('Blob URL cleaned up!');
+      // }
     };
   }, []);
 
