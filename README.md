@@ -28,6 +28,8 @@ View the demo on [YouTube](https://youtu.be/Lyfvt5-SsFA)
 
 - Text-to-3D: Don't have a panorama? You can also input text prompts, which will be converted into a 3D environment using **Stable Diffusion** for text-to-image generation.
 
+![Generated](resource/generated.png)
+
 ## References
 
 - MiDaS: [https://arxiv.org/pdf/1907.01341v3](https://arxiv.org/pdf/1907.01341v3)
