@@ -82,11 +82,15 @@ def cylindrical_projection(color_image_path,
     color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
 
     # apply style if applicable using neural_style_transfer.py
-    if style:
-        color_raw = apply_style_transfer_from_array(color_raw, style)
+    if style != "photorealistic":
+        styled_path = apply_style_transfer_from_array(color_raw, style)
+        color_raw = cv2.imread(styled_path, cv2.IMREAD_COLOR)
+        color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
 
     depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
     print('midas done')
+
+    print(color_raw.shape, depth_raw.shape)
 
     # Convert depth to float; apply any scaling if needed
     depth_raw = depth_raw.astype(np.float32) * depth_scale_factor
@@ -100,7 +104,7 @@ def cylindrical_projection(color_image_path,
     half_h = height / 2.0
 
     # Loop through each pixel in the panorama
-  # Adjust this value to control the effect
+    # Adjust this value to control the effect
     bias = 30
     original_r = (np.max(depth_raw) - depth_raw) * 10
     r = root_scaling(original_r)

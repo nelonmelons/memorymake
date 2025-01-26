@@ -3,7 +3,7 @@ import tensorflow_hub as hub
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-import cv2
+import cv2, os
 
 import ssl
 import urllib.request
@@ -107,8 +107,19 @@ def apply_style_transfer(content_image_path, style_image_path):
     # output_image.save("output.jpg")
     output_image.save(content_image_path)
 
-def apply_style_transfer_from_array(color_raw, style):
-    # Get dimensions of the content image to determine target size
+def apply_style_transfer_from_array(color_raw, style, output_dir="uploads"):
+    """
+    Applies style transfer to an image array and saves the result to the 'uploads/' directory.
+
+    Args:
+        color_raw (numpy.ndarray): The input content image as a NumPy array.
+        style (str): The name of the style image (assumes it's located in 'nst_styles/' directory).
+        output_dir (str): The directory where the output image will be saved (default: 'uploads/').
+
+    Returns:
+        str: The file path of the saved stylized image.
+    """
+    # Get dimensions of the content image
     content_height, content_width, _ = color_raw.shape
 
     # Dynamically calculate the target size with a 2:1 aspect ratio
@@ -118,9 +129,8 @@ def apply_style_transfer_from_array(color_raw, style):
     # Resize and normalize the content image
     content_image = resize_and_normalize(color_raw, (target_width, target_height))
 
+    # Load the style image
     style_image_path = f"nst_styles/{style}.jpg"
-
-    # Load and process the style image
     style_image = load_and_process_image(style_image_path, (target_width, target_height))
 
     # Load the pre-trained model from TensorFlow Hub
@@ -132,23 +142,34 @@ def apply_style_transfer_from_array(color_raw, style):
     # Convert stylized image tensor to array
     stylized_image_array = np.array(stylized_image[0] * 255, dtype=np.uint8)
 
-    # Resize back to original dimensions and overwrite in place
+    # Resize back to original dimensions
     stylized_image_array = cv2.resize(
         stylized_image_array,
         (content_width, content_height),
         interpolation=cv2.INTER_LANCZOS4
     )
 
-    # Modify the input array in place
-    color_raw[:, :, :] = stylized_image_array
-    return color_raw
+    # Convert back to BGR for saving with OpenCV
+    stylized_image_array = cv2.cvtColor(stylized_image_array, cv2.COLOR_RGB2BGR)
+
+    # Save the image
+    output_file = os.path.join(output_dir, f"stylized_{style}.jpg")
+    cv2.imwrite(output_file, stylized_image_array)
+
+    return output_file
 
 def resize_and_normalize(image_array, target_size):
-    """Resize and normalize a NumPy image array."""
-    # Resize the image to target size
-    resized_image = cv2.resize(image_array, target_size, interpolation=cv2.INTER_LANCZOS4)
+    """
+    Resize and normalize a NumPy image array.
 
-    # Normalize to [0, 1] and add batch dimension
+    Args:
+        image_array (numpy.ndarray): The input image as a NumPy array.
+        target_size (tuple): The target size as (width, height).
+
+    Returns:
+        numpy.ndarray: The normalized and resized image.
+    """
+    resized_image = cv2.resize(image_array, target_size, interpolation=cv2.INTER_LANCZOS4)
     normalized_image = np.array(resized_image) / 255.0
     return normalized_image[tf.newaxis, ...]
 

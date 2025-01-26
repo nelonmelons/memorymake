@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -33,10 +33,10 @@ def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.post("/upload")  # Removed trailing slash to match frontend
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), style: str = Form(...)):
     try:
-        if not file:
-            return {"error": "No file provided"}, 400
+        if not file or not style:
+            return {"error": "Both file and style are required"}, 400
             
         if not allowed_file(file.filename):
             return {"error": "Invalid file format"}, 400
@@ -51,11 +51,11 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_location, "wb+") as f:
             shutil.copyfileobj(file.file, f)
 
-        # Process the file (dummy processing step here)
-        # Imagine calling a function like `process_image_to_3d(file_location)`
-        print('file_location ', file_location)
+        print("File saved at: ", file_location)
+        print("Style: ", style)
+
         output_filename = os.path.join(RENDERED_FOLDER, f"{unique_file_first}.obj")
-        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
+        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename, style=style)
         print('Processing complete.')
 
         # Clean up the uploaded file after processing
@@ -84,11 +84,8 @@ async def generate_from_prompt(obj: dict):
         stable_diffusion.generate_image(prompt, style, save_image_path)
         print(f"Image saved at: {save_image_path}")
 
-        if style != "photorealistic":
-            # Process the image to generate 3D object
-            await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style=style)
-        else:
-            await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename)
+        # Process the image to generate 3D object
+        await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style="photorealistic")
             
         print(f"Processing complete. OBJ saved at: {output_filename}")
 
