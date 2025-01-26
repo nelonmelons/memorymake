@@ -33,4 +33,7 @@ output_mesh/
 *.obj
 *.png
 *.jpg
+uploads/
+files/
+rendered/
 .env

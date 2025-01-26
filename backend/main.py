@@ -1,12 +1,12 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
-import time
-import asyncio
-from midas_depth_map import midas_main
+import asyncio, time
 from open_3d import open_3d_main
+import stable_diffusion
+from neural_style_transfer import apply_style_transfer
 
 app = FastAPI()
 
@@ -21,7 +21,7 @@ app.add_middleware(
 
 # Define directories for uploads and rendered files
 UPLOAD_FOLDER = 'uploads'
-RENDERED_FOLDER = 'rendered_files'
+RENDERED_FOLDER = 'rendered'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
 PUBLIC_DIR = os.path.join(os.getcwd(), "public")
 
@@ -33,10 +33,10 @@ def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.post("/upload")  # Removed trailing slash to match frontend
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), style: str = Form(...)):
     try:
-        if not file:
-            return {"error": "No file provided"}, 400
+        if not file or not style:
+            return {"error": "Both file and style are required"}, 400
             
         if not allowed_file(file.filename):
             return {"error": "Invalid file format"}, 400
@@ -51,13 +51,50 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_location, "wb+") as f:
             shutil.copyfileobj(file.file, f)
 
-        # Process the file (dummy processing step here)
-        # Imagine calling a function like `process_image_to_3d(file_location)`
-        output_filename = f"rendered/output_{unique_file_first}.obj"
-        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
+        print("File saved at: ", file_location)
+        print("Style: ", style)
+
+        output_filename = os.path.join(RENDERED_FOLDER, f"{unique_file_first}.obj")
+        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename, style=style)
         print('Processing complete.')
 
+        # Clean up the uploaded file after processing
+        if os.path.exists(file_location):
+            os.remove(file_location)
+            print(f"Cleaned up uploaded file: {file_location}")
+
         return FileResponse(output_filename, media_type='application/octet-stream', filename=unique_file_first + '.obj')
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+@app.post("/generate")
+async def generate_from_prompt(obj: dict):
+    try:
+        prompt = obj.get("prompt")
+        style = obj.get("style").lower()
+        if not prompt or not style:
+            return {"error": "Prompt and style are required"}, 400
+
+        # Generate file paths
+        file_id = os.urandom(4).hex()
+        save_image_path = f"uploads/generated_{file_id}.png"
+        output_filename = f"rendered/generated_{file_id}.obj"
+
+        # Invoke the stable diffusion function
+        stable_diffusion.generate_image(prompt, style, save_image_path)
+        print(f"Image saved at: {save_image_path}")
+
+        # Process the image to generate 3D object
+        await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style="photorealistic")
+            
+        print(f"Processing complete. OBJ saved at: {output_filename}")
+
+        # Clean up the generated image file after processing
+        if os.path.exists(save_image_path):
+            os.remove(save_image_path)
+            print(f"Cleaned up image file: {save_image_path}")
+
+        return FileResponse(output_filename, media_type='application/octet-stream', filename=f"generated_{file_id}.obj")
     except Exception as e:
         return {"error": str(e)}, 500
 
@@ -67,13 +104,6 @@ async def get_rendered_file(file_name: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
     return {"error": "File not found"}, 404
-
-
-@app.post("/test")
-async def baka(file: UploadFile = File(...)):  # Assuming `var` is a JSON payload
-    print('baka')
-    await asyncio.sleep(60)  # Asynchronous sleep
-    return {"message": "baka"}
 
 # if __name__ == "__main__":
 #     import uvicorn

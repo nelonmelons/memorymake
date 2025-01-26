@@ -337,9 +337,10 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
 
   useEffect(() => {
     if (controlsRef.current) {
-      controlsRef.current.enablePan = isPanning;
+      controlsRef.current.enablePan = true;
       controlsRef.current.enableRotate = !isPanning;
       controlsRef.current.screenSpacePanning = true;
+      controlsRef.current.panSpeed = 2.0;
       
       if (isPanning) {
         controlsRef.current.mouseButtons = {
@@ -355,9 +356,22 @@ const ThreeScene: React.FC<ThreeSceneProps> = ({
         };
       }
       
+      // Ensure controls are properly updated
       controlsRef.current.update();
     }
   }, [isPanning]);
+
+  // Remove keyboard controls as they might be causing issues
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    return () => {
+      if (controls) {
+        controls.dispose();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (cameraRef.current) {
