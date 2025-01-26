@@ -54,12 +54,11 @@ async def upload_file(file: UploadFile = File(...)):
         # Process the file (dummy processing step here)
         # Imagine calling a function like `process_image_to_3d(file_location)`
         print('file_location ', file_location)
-        output_filename = os.path.join(PUBLIC_DIR, 'models', f"{unique_file_first}.obj")
+        output_filename = f"rendered/output_{unique_file_first}.obj"
         await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename)
         print('Processing complete.')
 
-        return {'status': 'success',
-                'file_name': output_filename}
+        return FileResponse(output_filename, media_type='application/octet-stream', filename=unique_file_first + '.obj')
     except Exception as e:
         return {"error": str(e)}, 500
 

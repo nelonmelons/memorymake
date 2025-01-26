@@ -583,6 +583,7 @@ const LandingPage: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [imagination, setImagination] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -602,13 +603,15 @@ const LandingPage: React.FC = () => {
         method: 'POST',
         body: formData,
       });
-
-      
-      
       if (!response.ok) throw new Error('Upload failed');
-      
-      // Navigate to 3D demo page
-      navigate('/three-demo');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Save the URL in state and navigate to the new page
+      setFileUrl(url);
+      navigate('/three-demo', { state: { fileUrl: url } });
+
     } catch (error) {
       console.error('Upload failed:', error);
     }
