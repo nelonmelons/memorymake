@@ -648,12 +648,89 @@ const Planet = styled.div<{ $size: number; $orbitSize: number; $speed: number; $
   }
 `;
 
+const LoadingOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  max-width: 400px;
+  width: 90%;
+`;
+
+const LoadingBar = styled.div`
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background: linear-gradient(
+      90deg,
+      #00ffff,
+      #ff00ff,
+      #00ffff
+    );
+    background-size: 200% 100%;
+    animation: moveGradient 2s linear infinite;
+    transition: width 0.3s ease;
+  }
+
+  @keyframes moveGradient {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+`;
+
+const LoadingText = styled(motion.div)`
+  color: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+`;
+
+const LoadingPercentage = styled(motion.div)`
+  color: #00ffff;
+  font-size: 3rem;
+  font-weight: bold;
+  font-family: 'Audiowide', sans-serif;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.3);
+`;
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
   const [imagination, setImagination] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -661,29 +738,62 @@ const LandingPage: React.FC = () => {
     }
   };
 
+  const updateLoadingProgress = async () => {
+    const texts = [
+      'Analyzing image...',
+      'Generating depth map...',
+      'Creating 3D mesh...',
+      'Applying textures...',
+      'Finalizing model...'
+    ];
+    
+    for (let i = 0; i <= 100; i += 2) {
+      if (!isLoading) break; // Stop if loading is cancelled
+      setLoadingProgress(i);
+      if (i % 20 === 0) {
+        setLoadingText(texts[Math.floor(i / 20)]);
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedFile) return;
+    
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingText('Preparing transformation...');
     
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('imagination', imagination);
     
     try {
+      updateLoadingProgress(); // Start progress animation
+
       const response = await fetch('http://localhost:8000/upload', {
         method: 'POST',
         body: formData,
       });
+      
       if (!response.ok) throw new Error('Upload failed');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
-      // Save the URL in state and navigate to the new page
       setFileUrl(url);
+      
+      // Ensure we show 100% before navigating
+      setLoadingProgress(100);
+      setLoadingText('Transformation complete!');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       navigate('/three-demo', { state: { fileUrl: url } });
-
     } catch (error) {
       console.error('Upload failed:', error);
+      setLoadingText('Error: Upload failed. Please try again.');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -807,6 +917,33 @@ const LandingPage: React.FC = () => {
           </Content>
         </HeroSection>
       </Container>
+      <AnimatePresence>
+        {isLoading && (
+          <LoadingOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <LoadingContainer>
+              <LoadingText
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {loadingText}
+              </LoadingText>
+              <LoadingBar style={{ '--progress': `${loadingProgress}%` } as any} />
+              <LoadingPercentage
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+              >
+                {loadingProgress}%
+              </LoadingPercentage>
+            </LoadingContainer>
+          </LoadingOverlay>
+        )}
+      </AnimatePresence>
     </PageContainer>
   );
 };
