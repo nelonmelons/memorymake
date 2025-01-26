@@ -784,6 +784,31 @@ const HexagonLoader = styled(motion.div)`
   }
 `;
 
+const simulateProgress = async (
+  setLoadingProgress: (progress: number) => void,
+  setLoadingStage: (stage: string) => void
+) => {
+  const stages = [
+    { progress: 20, text: 'Processing your request...' },
+    { progress: 40, text: 'Analyzing image data...' },
+    { progress: 60, text: 'Generating 3D mesh...' },
+    { progress: 80, text: 'Applying textures...' },
+    { progress: 95, text: 'Finalizing model...' }
+  ];
+
+  for (const stage of stages) {
+    setLoadingStage(stage.text);
+    const steps = 5; // Number of progress updates within each stage
+    const stepSize = (stage.progress - (stages.indexOf(stage) === 0 ? 0 : stages[stages.indexOf(stage) - 1].progress)) / steps;
+    
+    for (let i = 0; i < steps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+      const currentProgress = (stages.indexOf(stage) === 0 ? 0 : stages[stages.indexOf(stage) - 1].progress) + (stepSize * (i + 1));
+      setLoadingProgress(Math.min(currentProgress, 100));
+    }
+  }
+};
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
@@ -820,11 +845,13 @@ const LandingPage: React.FC = () => {
     setLoadingProgress(0);
     setLoadingStage('Initializing transformation...');
     
+    // Start progress simulation
+    simulateProgress(setLoadingProgress, setLoadingStage);
+    
     try {
       let response;
       
       if (selectedFile) {
-        setLoadingStage('Processing your image...');
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('style', selectedStyle);
@@ -834,7 +861,6 @@ const LandingPage: React.FC = () => {
           body: formData,
         });
       } else if (prompt) {
-        setLoadingStage('Generating from your prompt...');
         response = await fetch('http://localhost:8000/generate', {
           method: 'POST',
           headers: {
@@ -851,19 +877,21 @@ const LandingPage: React.FC = () => {
 
       if (!response.ok) throw new Error('Request failed');
 
-      setLoadingStage('Creating 3D model...');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setFileUrl(url);
       
-      setLoadingStage('Preparing viewer...');
+      setLoadingProgress(100);
+      setLoadingStage('Transformation complete!');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       navigate('/three-demo', { 
         state: { 
           fileUrl: url,
           loadingState: {
             isLoading: true,
-            progress: loadingProgress,
-            stage: loadingStage
+            progress: 100,
+            stage: 'Loading 3D viewer...'
           }
         } 
       });
@@ -963,27 +991,27 @@ const LandingPage: React.FC = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <span className="icon">📸</span>
+                    <span className="icon">📷</span>
                     <span className="title">Photorealistic</span>
-                    <span className="description">Ultra-realistic 3D conversion</span>
+                    <span className="description">Ultra-realistic rendering</span>
                   </StyleButton>
                   <StyleButton
-                    onClick={() => handleStyleSelect('painting')}
+                    onClick={() => handleStyleSelect('monet')}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="icon">🌸</span>
+                    <span className="title">Monet</span>
+                    <span className="description">Impressionist style</span>
+                  </StyleButton>
+                  <StyleButton
+                    onClick={() => handleStyleSelect('picasso')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <span className="icon">🎨</span>
-                    <span className="title">Oil Canvas</span>
-                    <span className="description">Artistic painting style</span>
-                  </StyleButton>
-                  <StyleButton
-                    onClick={() => handleStyleSelect('cyberpunk')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="icon">🌆</span>
-                    <span className="title">Cyberpunk</span>
-                    <span className="description">Futuristic neon aesthetic</span>
+                    <span className="title">Picasso</span>
+                    <span className="description">Cubist abstraction</span>
                   </StyleButton>
                 </StyleSelectionContainer>
               ) : (
