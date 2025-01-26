@@ -207,7 +207,7 @@ def visualize_depth_map(depth_map_normalized):
     # Save as grayscale image
     
     plt.imshow(depth_map_normalized, cmap='plasma')
-    plt.savefig("depth_map_dog.png")
+    plt.savefig("depth_map_china.png")
     plt.colorbar()
     plt.title("Normalized Depth Map (Colormapped)")
     plt.show()
@@ -245,7 +245,7 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 
     # Estimate depth
     depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
-    # save_depth_map_as_png(depth_map_normalized)
+    save_depth_map_as_png(depth_map_normalized)
 
     # Optional: Visualize depth map
     # image_np = np.array(image)
@@ -265,6 +265,7 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 
     # # Save mesh
     # save_mesh(mesh, output_mesh_path)
+    print(depth_map)
     return depth_map
 
 if __name__ == "__main__":
