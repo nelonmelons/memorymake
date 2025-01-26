@@ -57,9 +57,6 @@ def compute_point_cloud(color_image_path, scale=1.5):
     return pcd
 
 
-
-
-
 def cylindrical_projection(color_image_path, 
                           depth_scale_factor=1.0, vertical_scale=1.0):
     """
@@ -153,9 +150,8 @@ def cylindrical_projection(color_image_path,
     pcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30)
     )
-    print('beffore orient')
+    
     # pcd.orient_normals_consistent_tangent_plane(30)
-    print('after orient normals')
 
     return pcd
 
@@ -217,8 +213,8 @@ def open_3d_main(color_image_path, save_path, scale=1.5):
     delauny_method(pcd, save_path=save_path)
     return None
 
-if __name__ == "__main__":
-    color_image_path = "assets/japan.png"
-    depth_image_path = "assets/panorama_depth.png"
+if __name__ == "__main__":=
+    color_image_path = "output.jpg"
+    depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
