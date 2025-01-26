@@ -283,37 +283,61 @@ const UploadSection = styled(motion.div)`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.2rem;
   background: rgba(0, 0, 0, 0.7);
-  padding: 1.5rem;
-  border-radius: 8px;
+  padding: 2rem;
+  border-radius: 12px;
   border: 1px solid #ff00ff30;
   box-shadow: 
     0 0 20px #ff00ff20,
     0 0 40px #ff00ff10;
   backdrop-filter: blur(10px);
-  max-width: 300px;
+  max-width: 500px;
   width: 90%;
 `;
 
-const TextInput = styled.input`
+const TextInput = styled.textarea`
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid #ff00ff30;
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  padding: 1.2rem;
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 1rem;
   width: 100%;
+  min-height: 120px;
+  max-height: 300px;
+  resize: vertical;
   transition: all 0.3s ease;
+  line-height: 1.6;
+  font-family: inherit;
   
   &:focus {
     outline: none;
     border-color: #ff00ff;
-    box-shadow: 0 0 15px #ff00ff40;
+    box-shadow: 0 0 20px #ff00ff40;
+    background: rgba(0, 0, 0, 0.7);
   }
   
   &::placeholder {
     color: rgba(255, 255, 255, 0.5);
+  }
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #ff00ff50, #00ffff50);
+    border-radius: 4px;
+    
+    &:hover {
+      background: linear-gradient(45deg, #ff00ff80, #00ffff80);
+    }
   }
 `;
 
@@ -651,6 +675,115 @@ const getStageText = (showStyles: boolean, showUpload: boolean) => {
   return "Transform your cherished moments into immersive three-dimensional experiences. Step into your photos and explore them like never before.";
 };
 
+const LoadingOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+`;
+
+const LoadingContent = styled(motion.div)`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  color: white;
+`;
+
+const LoadingBar = styled(motion.div)`
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background: linear-gradient(
+      90deg,
+      #00ffff,
+      #ff00ff,
+      #00ffff
+    );
+    background-size: 200% 100%;
+    animation: moveGradient 2s linear infinite;
+    transition: width 0.3s ease;
+  }
+
+  @keyframes moveGradient {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+`;
+
+const LoadingText = styled(motion.div)`
+  font-size: 1.5rem;
+  font-weight: 500;
+  text-align: center;
+  color: white;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  margin-bottom: 1rem;
+`;
+
+const LoadingStage = styled(motion.div)`
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+`;
+
+const LoadingPercentage = styled(motion.div)`
+  font-size: 3rem;
+  font-weight: bold;
+  font-family: 'Audiowide', sans-serif;
+  background: linear-gradient(45deg, #00ffff, #ff00ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+`;
+
+const HexagonLoader = styled(motion.div)`
+  width: 100px;
+  height: 100px;
+  margin: 2rem;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: conic-gradient(
+      from 0deg,
+      #00ffff,
+      #ff00ff,
+      #00ffff
+    );
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    animation: rotateConic 2s linear infinite;
+  }
+
+  @keyframes rotateConic {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
@@ -660,6 +793,9 @@ const LandingPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState('');
 
   const handleStyleSelect = (style: string) => {
     setSelectedStyle(style);
@@ -680,11 +816,15 @@ const LandingPage: React.FC = () => {
   const handleSubmit = async () => {
     if (!selectedStyle) return;
     
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingStage('Initializing transformation...');
+    
     try {
       let response;
       
       if (selectedFile) {
-        // Handle image upload case
+        setLoadingStage('Processing your image...');
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('style', selectedStyle);
@@ -694,7 +834,7 @@ const LandingPage: React.FC = () => {
           body: formData,
         });
       } else if (prompt) {
-        // Handle text prompt case
+        setLoadingStage('Generating from your prompt...');
         response = await fetch('http://localhost:8000/generate', {
           method: 'POST',
           headers: {
@@ -711,12 +851,26 @@ const LandingPage: React.FC = () => {
 
       if (!response.ok) throw new Error('Request failed');
 
+      setLoadingStage('Creating 3D model...');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setFileUrl(url);
-      navigate('/three-demo', { state: { fileUrl: url } });
-    } catch (error) {
+      
+      setLoadingStage('Preparing viewer...');
+      navigate('/three-demo', { 
+        state: { 
+          fileUrl: url,
+          loadingState: {
+            isLoading: true,
+            progress: loadingProgress,
+            stage: loadingStage
+          }
+        } 
+      });
+    } catch (error: any) {
       console.error('Request failed:', error);
+      setLoadingStage('Error: ' + (error.message || 'Unknown error'));
+      setTimeout(() => setIsLoading(false), 2000);
     }
   };
 
@@ -841,7 +995,6 @@ const LandingPage: React.FC = () => {
                   exit={{ opacity: 0, y: 20 }}
                 >
                   <TextInput
-                    type="text"
                     placeholder="Enter a prompt or upload an image..."
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
@@ -869,6 +1022,34 @@ const LandingPage: React.FC = () => {
           </Content>
         </HeroSection>
       </Container>
+      <AnimatePresence>
+        {isLoading && (
+          <LoadingOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <LoadingContent>
+              <HexagonLoader />
+              <LoadingText
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {loadingStage}
+              </LoadingText>
+              <LoadingBar style={{ '--progress': `${loadingProgress}%` } as any} />
+              <LoadingPercentage
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+              >
+                {loadingProgress}%
+              </LoadingPercentage>
+            </LoadingContent>
+          </LoadingOverlay>
+        )}
+      </AnimatePresence>
     </PageContainer>
   );
 };
