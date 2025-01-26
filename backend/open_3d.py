@@ -82,7 +82,7 @@ def cylindrical_projection(color_image_path,
     color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
 
     # apply style if applicable using neural_style_transfer.py
-    if style != "photorealistic":
+    if style is not None and style != "photorealistic":
         styled_path = apply_style_transfer_from_array(color_raw, style)
         color_raw = cv2.imread(styled_path, cv2.IMREAD_COLOR)
         color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
@@ -224,7 +224,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "output.jpg"
+    color_image_path = "assets/farm.png"
     depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
