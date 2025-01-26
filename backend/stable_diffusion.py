@@ -18,7 +18,7 @@ def generate_image(prompt: str, style: str, save_path: str) -> None:
 
     base_prompt = "A 180-degree panorama of a landscape or architecture with a planar composition, where the foreground, middle ground, and background are clearly separated into horizontal planes. \
                 The scene is captured in a wide, continuous panoramic view under natural daylight, with soft shadows and even lighting, ensuring clean depth segmentation. \
-                No distracting elements or converging depth; the focus is on planar horizontal layering. Should be suitable for 3D modelling and visualization."
+                No distracting elements or converging depth; the focus is on planar horizontal layering. Should be suitable for 3D modelling and visualization. Place the key elements to the front center."
     
     # Define the final prompt based on the style
     final_prompt = f"Create a {style} style image of {prompt}. {base_prompt}"
@@ -35,6 +35,7 @@ def generate_image(prompt: str, style: str, save_path: str) -> None:
                     Avoid side-focused elements, uneven terrain, or cluttered foregrounds. \
                     Exclude distractions like people, animals, or modern artifacts. \
                     Do not generate any skewed, asymmetric, or chaotic scenes. \
+                    Do not include any object too close to the sides. \
                     Avoid harsh lighting, strong shadows, fog, or haziness that obscures the planes. \
                     Ensure the layout is horizontally aligned and planar, avoiding complexity or extreme variations in elevation."
     )
