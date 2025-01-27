@@ -2,7 +2,7 @@
 
 As memories pile up in our camera rolls or remain abstract ideas, we wanted to create a way to truly experience them. MemoryMake was born from the idea of transforming ordinary photos and text prompts into dynamic, navigable, and visually engaging 3D environments—so users can explore their cherished moments instead of merely scrolling past them.
 
-![MemoryMake](resource/gallery.jpg)
+![MemoryMake](resource/gallery.png)
 
 We developed **our own** efficient 3D model generation pipeline, which takes in a panorama image and returns a 3D model that can be viewed in a 180-degree environment, leveraging cutting edge computer vision and generative AI research.
 
@@ -24,7 +24,7 @@ View the demo on [YouTube](https://youtu.be/Lyfvt5-SsFA)
 
 - Style Selection: Choose from artistic styles like Photorealistic, Monet, or Van Gogh, which will overlay onto a realistic place that you upload using **Neural Style Transfer**.
 
-![NST](resource/gallery-2.jpg)
+![NST](resource/gallery-2.png)
 
 - Text-to-3D: Don't have a panorama? You can also input text prompts, which will be converted into a 3D environment using **Stable Diffusion** for text-to-image generation.
 
