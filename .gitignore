@@ -31,8 +31,6 @@ dist/
 output_mesh/
 **/output_mesh/
 *.obj
-*.png
-*.jpg
 uploads/
 files/
 rendered/

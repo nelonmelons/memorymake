@@ -104,8 +104,7 @@ def apply_style_transfer(content_image_path, style_image_path):
     # display_image(output_image, title="Stylized Image")
 
     # Save the output image
-    # output_image.save("output.jpg")
-    output_image.save(content_image_path)
+    output_image.save("output.jpg")
 
 def apply_style_transfer_from_array(color_raw, style, output_dir="uploads"):
     """
@@ -175,4 +174,4 @@ def resize_and_normalize(image_array, target_size):
 
 if __name__ == '__main__':
     # Example usage (adjust the paths to your images)
-    apply_style_transfer('assets/osakatest.png', 'nst_styles/cubism.jpg')
+    apply_style_transfer('assets/web/temple_heaven.png', 'nst_styles/picasso.jpg')
