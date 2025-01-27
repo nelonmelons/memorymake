@@ -60,7 +60,11 @@ cd backend
 uvicorn main:app --reload
 ```
 
-For image generation, you will require the Hugging Face inference API key in a `.env` file in the backend directory. However, since the model is open-source, you can also modify the code to download the weights and run it locally.
+For image generation, you will require the Hugging Face inference API key in a `.env` file in the backend directory. However, since the model is open-source, you can also modify the code to download the weights and run it locally. Simply uncomment the lines in `backend/main.py` to use code that runs locally:
+
+```python
+stable_diffusion.generate_image_local(prompt, style, save_image_path)
+```
 
 > All the models used in this project are open-source and free to use.
 
