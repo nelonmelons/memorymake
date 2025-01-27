@@ -30,6 +30,12 @@ View the demo on [YouTube](https://youtu.be/Lyfvt5-SsFA)
 
 ![Generated](resource/generated.png)
 
+## Workflow
+
+The following diagram shows the workflow of the project:
+
+![Workflow](resource/pipeline.png)
+
 ## References
 
 - MiDaS: [https://arxiv.org/pdf/1907.01341v3](https://arxiv.org/pdf/1907.01341v3)
@@ -57,3 +63,13 @@ uvicorn main:app --reload
 For image generation, you will require the Hugging Face inference API key in a `.env` file in the backend directory. However, since the model is open-source, you can also modify the code to download the weights and run it locally.
 
 > All the models used in this project are open-source and free to use.
+
+## Next Steps
+
+1. Enhance the prompt used to generate images (Stable Diffusion) to include more pronounced 3D features
+
+2. Improve the 3D generation pipeline to minimize distortion and improve the overall quality of the generated 3D models
+
+3. Render the 3D models in a VR headset!!
+
+4. Implement CycleGAN to allow users to change the style of the generated 3D models (not just adding artistic styles)
