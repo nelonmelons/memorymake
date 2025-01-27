@@ -406,13 +406,21 @@ const ThreeDemo: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
 
   const location = useLocation();
-  const { loadingState } = location.state || {};
+  const { uploadedUrl, loadingState } = location.state || {};
+  // setFileUrl(url);
 
   const [recentModels] = useState([
     { name: 'Living Room Panorama', date: '2024-01-27' },
     { name: 'Kitchen View', date: '2024-01-26' },
     { name: 'Bedroom Scene', date: '2024-01-25' },
   ]);
+
+  useEffect(() => {
+    if (uploadedUrl) {
+      setFileUrl(uploadedUrl);
+      setShowUpload(false); // Hide the upload container if a URL is provided
+    }
+  }, [uploadedUrl]);
 
   const clearStatusTimeout = () => {
     if (statusTimeoutRef.current) {
@@ -434,6 +442,8 @@ const ThreeDemo: React.FC = () => {
 
   const handleLoadProgress = useCallback((progress: number) => {
     setLoadingProgress(progress);
+    // console.log(uploadedUrl);
+    // setFileUrl(uploadedUrl);
     setStatus(`Loading model: ${Math.round(progress)}%`);
   }, []);
 
@@ -587,9 +597,9 @@ const ThreeDemo: React.FC = () => {
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
-                  onClick={() => handleModelClick('denauny_panorama.obj')}
+                  onClick={() => handleModelClick('irl.obj')}
                 >
-                  <FiImage /> Living Room Panorama
+                  <FiImage /> Hackathon Table
                   <NavButtonDate>2024-01-27</NavButtonDate>
                 </NavButton>
 
@@ -597,7 +607,7 @@ const ThreeDemo: React.FC = () => {
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
-                  onClick={() => handleModelClick('denauny_panorama.obj')}
+                  onClick={() => handleModelClick('stone.obj')}
                 >
                   <FiImage /> Kitchen View
                   <NavButtonDate>2024-01-26</NavButtonDate>

@@ -970,6 +970,7 @@ const LandingPage: React.FC = () => {
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setFileUrl(url);
+      console.log(url);
       
       setLoadingProgress(100);
       setLoadingStage('Transformation complete!');
@@ -977,7 +978,7 @@ const LandingPage: React.FC = () => {
       
       navigate('/three-demo', { 
         state: { 
-          fileUrl: url,
+          uploadedUrl: url,
           loadingState: {
             isLoading: true,
             progress: 100,

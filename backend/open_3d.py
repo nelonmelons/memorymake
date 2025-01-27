@@ -106,7 +106,7 @@ def cylindrical_projection(color_image_path,
     # Loop through each pixel in the panorama
     # Adjust this value to control the effect
     bias = 30
-    original_r = (np.max(depth_raw) - depth_raw + bias) * 10
+    original_r = (np.max(depth_raw) - depth_raw) * 10
     r = root_scaling(original_r)
     # r = (np.max(depth_raw) - depth_raw) * 10
     valid_mask = r > 0  # Mask to skip invalid or zero depth
@@ -226,7 +226,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "assets/farm.png"
+    color_image_path = "assets/web/temple.jpg"
     depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)
