@@ -35,3 +35,5 @@ uploads/
 files/
 rendered/
 .env
+*.png
+*.jpg
