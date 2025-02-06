@@ -220,7 +220,7 @@ def delauny_method(pcd, save_path=None):
         print(f"Mesh saved to {save_path}")
 
     # Visualize the mesh
-    # o3d.visualization.draw_geometries([mesh])
+    o3d.visualization.draw_geometries([mesh])
         
 
 def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
@@ -229,7 +229,7 @@ def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
     return None
 
 if __name__ == "__main__":
-    color_image_path = "assets/jet2.png"
+    color_image_path = "assets/web/temple.jpg"
     depth_image_path = "depth_map.png"
     save_path = "panorama_mesh.obj"
     open_3d_main(color_image_path, save_path, scale=1.0)

@@ -41,7 +41,7 @@ def resize_image(image, content_size):
 
 # Load and preprocess an image
 def load_and_process_image(image_path, content_size):
-    img = Image.open(image_path)
+    img = Image.open(image_path).convert('RGB')
     
     # Resize the image based on the content size (aspect ratio 2:1)
     img = resize_image(img, content_size)
