@@ -61,7 +61,8 @@ def compute_point_cloud(color_image_path, scale=1.5):
 def cylindrical_projection(color_image_path,
                           depth_scale_factor=1.0, 
                           vertical_scale=1.4,
-                          style=None):
+                          style=None,
+                          use_cuda=True):
     """
     Convert a panoramic color + depth image into a point cloud wrapped in cylindrical space.
 
@@ -83,11 +84,11 @@ def cylindrical_projection(color_image_path,
 
     # apply style if applicable using neural_style_transfer.py
     if style is not None and style != "photorealistic":
-        styled_path = apply_style_transfer_from_array(color_raw, style)
+        styled_path = apply_style_transfer_from_array(color_raw, style, use_cuda=use_cuda)
         color_raw = cv2.imread(styled_path, cv2.IMREAD_COLOR)
         color_raw = cv2.cvtColor(color_raw, cv2.COLOR_BGR2RGB)
 
-    depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt")
+    depth_raw = midas_main(color_image_path, None, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt", use_cuda=use_cuda)
     print('midas done')
 
     print(color_raw.shape, depth_raw.shape)
@@ -223,8 +224,8 @@ def delauny_method(pcd, save_path=None):
     o3d.visualization.draw_geometries([mesh])
         
 
-def open_3d_main(color_image_path, save_path, scale=1.5, style=None):
-    pcd = cylindrical_projection(color_image_path, depth_scale_factor=scale, style=style)
+def open_3d_main(color_image_path, save_path, scale=1.5, style=None, use_cuda=True):
+    pcd = cylindrical_projection(color_image_path, depth_scale_factor=scale, style=style, use_cuda=use_cuda)
     delauny_method(pcd, save_path=save_path)
     return None
 

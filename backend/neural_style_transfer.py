@@ -106,7 +106,7 @@ def apply_style_transfer(content_image_path, style_image_path):
     # Save the output image
     output_image.save("output.jpg")
 
-def apply_style_transfer_from_array(color_raw, style, output_dir="uploads"):
+def apply_style_transfer_from_array(color_raw, style, output_dir="uploads", use_cuda=True):
     """
     Applies style transfer to an image array and saves the result to the 'uploads/' directory.
 
@@ -114,10 +114,24 @@ def apply_style_transfer_from_array(color_raw, style, output_dir="uploads"):
         color_raw (numpy.ndarray): The input content image as a NumPy array.
         style (str): The name of the style image (assumes it's located in 'nst_styles/' directory).
         output_dir (str): The directory where the output image will be saved (default: 'uploads/').
+        use_cuda (bool): Whether to use CUDA if available (default: True).
 
     Returns:
         str: The file path of the saved stylized image.
     """
+    # Check if CUDA is available and requested
+    if use_cuda and tf.config.list_physical_devices('GPU'):
+        print("✅ Using GPU for Neural Style Transfer")
+        # Set memory growth to avoid allocating all GPU memory at once
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+            except RuntimeError as e:
+                print(f"GPU setup warning: {e}")
+    else:
+        print("ℹ️  Using CPU for Neural Style Transfer")
     # Get dimensions of the content image
     content_height, content_width, _ = color_raw.shape
 

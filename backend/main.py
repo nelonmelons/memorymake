@@ -7,6 +7,7 @@ import asyncio, time
 from open_3d import open_3d_main
 import stable_diffusion
 from neural_style_transfer import apply_style_transfer
+import torch
 
 app = FastAPI()
 
@@ -33,7 +34,7 @@ def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.post("/upload")  # Removed trailing slash to match frontend
-async def upload_file(file: UploadFile = File(...), style: str = Form(...), background_tasks: BackgroundTasks = None):
+async def upload_file(file: UploadFile = File(...), style: str = Form(...), use_cuda: bool = Form(True), background_tasks: BackgroundTasks = None):
     try:
         if not file or not style:
             return {"error": "Both file and style are required"}, 400
@@ -53,9 +54,10 @@ async def upload_file(file: UploadFile = File(...), style: str = Form(...), back
 
         print("File saved at: ", file_location)
         print("Style: ", style)
+        print("Use CUDA: ", use_cuda)
 
         output_filename = os.path.join(RENDERED_FOLDER, f"{unique_file_first}.obj")
-        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename, style=style)
+        await asyncio.to_thread(open_3d_main, file_location, save_path=output_filename, style=style, use_cuda=use_cuda)
         print('Processing complete.')
 
         # Clean up the uploaded file after processing
@@ -74,6 +76,7 @@ async def generate_from_prompt(obj: dict, background_tasks: BackgroundTasks = No
         prompt = obj.get("prompt")
         style = obj.get("style").lower()
         model = obj.get("model", "difix").lower()  # Default to DiFix model
+        use_cuda = obj.get("use_cuda", True)  # Default to True for CUDA usage
         
         if not prompt or not style:
             return {"error": "Prompt and style are required"}, 400
@@ -89,12 +92,13 @@ async def generate_from_prompt(obj: dict, background_tasks: BackgroundTasks = No
         output_filename = f"rendered/generated_{file_id}.obj"
 
         # Use the selected model for generation
-        stable_diffusion.generate_image_with_model_selection(prompt, style, save_image_path, model=model)
+        stable_diffusion.generate_image_with_model_selection(prompt, style, save_image_path, model=model, use_cuda=use_cuda)
         
         print(f"Image generated using {model.upper()} model and saved at: {save_image_path}")
+        print(f"CUDA usage: {use_cuda}")
 
         # Process the image to generate 3D object
-        await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style="photorealistic")
+        await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style="photorealistic", use_cuda=use_cuda)
             
         print(f"Processing complete. OBJ saved at: {output_filename}")
 
@@ -105,6 +109,24 @@ async def generate_from_prompt(obj: dict, background_tasks: BackgroundTasks = No
         background_tasks.add_task(cleanup, output_filename)
 
         return FileResponse(output_filename, media_type='application/octet-stream', filename=f"generated_{file_id}.obj")
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+@app.get("/cuda-status")
+async def get_cuda_status():
+    """Check CUDA availability and system information"""
+    try:
+        cuda_info = stable_diffusion.check_system_capabilities()
+        return {
+            "cuda_available": cuda_info["cuda_available"],
+            "device_count": cuda_info["cuda_device_count"],
+            "pytorch_version": cuda_info["pytorch_version"],
+            "gpu_info": {
+                "name": cuda_info.get("gpu_name", "N/A"),
+                "memory_gb": cuda_info.get("gpu_memory", 0)
+            } if cuda_info["cuda_available"] else None,
+            "recommendations": cuda_info["recommendations"]
+        }
     except Exception as e:
         return {"error": str(e)}, 500
 

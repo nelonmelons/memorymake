@@ -81,3 +81,4 @@ urllib3==2.3.0
 uvicorn==0.34.0
 Werkzeug==3.0.6
 zipp==3.21.0
+dotenv==1.0.0

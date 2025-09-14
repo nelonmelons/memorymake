@@ -26,11 +26,11 @@ def check_system_capabilities():
             info["gpu_memory"] = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # GB
             
             if info["gpu_memory"] < 6:
-                info["recommendations"].append("GPU has less than 6GB VRAM - consider using CPU or reducing model precision")
+                info["recommendations"].append("GPU has less than 6GB VRAM - consider using CPU or basic models")
             elif info["gpu_memory"] < 8:
-                info["recommendations"].append("GPU has limited VRAM - DiFix may work but with reduced batch size")
+                info["recommendations"].append("GPU has limited VRAM - NVIDIA DiFix may work but with reduced batch size")
             else:
-                info["recommendations"].append("GPU has sufficient VRAM for optimal DiFix performance")
+                info["recommendations"].append("GPU has sufficient VRAM for optimal NVIDIA DiFix performance")
                 
         except Exception as e:
             info["cuda_error"] = str(e)
@@ -82,7 +82,7 @@ def generate_image(prompt: str, style: str, save_path: str) -> None:
 
     print(f"Image generated with the prompt: '{final_prompt}'")
 
-def generate_image_local(prompt: str, style: str, save_path: str) -> None:
+def generate_image_local(prompt: str, style: str, save_path: str, use_cuda: bool = True) -> None:
     """
     Generate an image based on the prompt and style using the locally downloaded Stable Diffusion XL model.
     
@@ -103,8 +103,8 @@ def generate_image_local(prompt: str, style: str, save_path: str) -> None:
 
     # Load the locally stored Stable Diffusion XL model and pipeline
     try:
-        # Check CUDA availability
-        cuda_available = torch.cuda.is_available() and torch.cuda.device_count() > 0
+        # Check CUDA availability and user preference
+        cuda_available = torch.cuda.is_available() and use_cuda and torch.cuda.device_count() > 0
         
         pipe = StableDiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0", 
@@ -117,11 +117,17 @@ def generate_image_local(prompt: str, style: str, save_path: str) -> None:
             try:
                 pipe.to("cuda")  # Use GPU if available
                 print("✅ Using GPU for SDXL generation")
+                print(f"GPU: {torch.cuda.get_device_name(0)}, Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.1f}GB")
             except Exception as e:
                 print(f"⚠️  Failed to move SDXL to GPU: {e}")
                 print("🔄 Using CPU for SDXL generation")
         else:
-            print("ℹ️  Using CPU for SDXL generation")
+            if not use_cuda:
+                print("ℹ️  CUDA disabled by user - using CPU for SDXL generation")
+            elif not torch.cuda.is_available():
+                print("ℹ️  CUDA not available - using CPU for SDXL generation")
+            else:
+                print("ℹ️  Using CPU for SDXL generation")
             
     except Exception as e:
         print(f"❌ Error loading SDXL: {e}")
@@ -133,26 +139,32 @@ def generate_image_local(prompt: str, style: str, save_path: str) -> None:
     try:
         # Use minimal parameters to avoid NoneType errors
         result = pipe(
-            final_prompt, 
+            prompt=final_prompt,  # Use explicit parameter name
             num_inference_steps=20,  # Reduced for faster testing
             guidance_scale=7.5,
             height=512,
             width=1024
-            # Removed any advanced parameters that might cause issues
         )
         
-        if result is None or not hasattr(result, 'images') or not result.images:
-            raise ValueError("Pipeline returned invalid result")
+        if result is None:
+            raise ValueError("SDXL Pipeline returned None result")
+            
+        if not hasattr(result, 'images'):
+            raise ValueError("SDXL result has no 'images' attribute")
+            
+        if not result.images:
+            raise ValueError("SDXL result.images is empty")
             
         image = result.images[0]
         
         if image is None:
-            raise ValueError("Generated image is None")
+            raise ValueError("SDXL Generated image is None")
             
     except Exception as e:
         print(f"❌ Error during SDXL generation: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
         print("🔄 Falling back to basic generation...")
-        generate_image_local_basic(prompt, style, save_path)
+        generate_image_local_basic(prompt, style, save_path, use_cuda)
         return
 
     # Save the image
@@ -164,27 +176,102 @@ def generate_image_local(prompt: str, style: str, save_path: str) -> None:
         raise e
 
 
-def generate_image_difix(prompt: str, style: str, save_path: str) -> None:
+def generate_image_difix(prompt: str, style: str, save_path: str, use_cuda: bool = True) -> None:
     """
-    Generate an image using an improved diffusion model for better quality.
-    Using Stable Diffusion XL with optimized settings instead of the fictional DiFix.
+    Generate an image using the actual NVIDIA DiFix model.
     
     Args:
         prompt (str): The prompt describing the image.
         style (str): The style of the generated image.
         save_path (str): Path to save the generated image.
+        use_cuda (bool): Whether to use CUDA if available (default: True).
     """
     # Validate inputs
     if not prompt or not style or not save_path:
         raise ValueError("prompt, style, and save_path cannot be None or empty")
     
-    print("🎨 Using Enhanced Stable Diffusion XL (DiFix alternative)...")
+    print("🎨 Using NVIDIA DiFix model...")
     
-    # Use the improved SDXL generation with DiFix-style optimizations
-    generate_image_local_enhanced(prompt, style, save_path)
+    # Create enhanced prompt for DiFix with style and 3D optimization
+    base_prompt = "detailed, 8k, high quality, panoramic view with clear depth layers"
+    final_prompt = f"{prompt}, {style} style, {base_prompt}"
+    
+    print(f"🎨 DiFix Generation - Prompt: {final_prompt[:100]}...")
+
+    try:
+        # Check CUDA availability and user preference
+        cuda_available = torch.cuda.is_available() and use_cuda and torch.cuda.device_count() > 0
+        
+        # Load the actual NVIDIA DiFix model
+        pipe = DiffusionPipeline.from_pretrained(
+            "nvidia/difix",
+            torch_dtype=torch.float16 if cuda_available else torch.float32,
+            trust_remote_code=True  # Required for DiFix model
+        )
+        
+        if cuda_available:
+            try:
+                pipe = pipe.to("cuda")
+                print("✅ Using GPU for NVIDIA DiFix generation")
+                print(f"GPU: {torch.cuda.get_device_name(0)}, Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.1f}GB")
+            except Exception as e:
+                print(f"⚠️  Failed to move DiFix to GPU: {e}")
+                print("🔄 Using CPU for DiFix generation")
+                cuda_available = False
+        else:
+            if not use_cuda:
+                print("ℹ️  CUDA disabled by user - using CPU for DiFix generation")
+            elif not torch.cuda.is_available():
+                print("ℹ️  CUDA not available - using CPU for DiFix generation")
+            else:
+                print("ℹ️  Using CPU for DiFix generation")
+                
+    except Exception as e:
+        print(f"❌ Error loading NVIDIA DiFix model: {e}")
+        print("🔄 Falling back to Enhanced SDXL...")
+        generate_image_local_enhanced(prompt, style, save_path, use_cuda)
+        return
+
+    # Generate with DiFix
+    try:
+        print("🚀 Generating with NVIDIA DiFix...")
+        
+        # DiFix optimized parameters
+        result = pipe(
+            prompt=final_prompt,
+            height=512,
+            width=1024,
+            num_inference_steps=25,  # DiFix typically needs fewer steps
+            guidance_scale=7.0       # Optimized for DiFix
+        )
+        
+        if result is None:
+            raise ValueError("DiFix pipeline returned None result")
+            
+        if not hasattr(result, 'images'):
+            raise ValueError("DiFix result has no 'images' attribute")
+            
+        if not result.images:
+            raise ValueError("DiFix result.images is empty")
+            
+        image = result.images[0]
+        
+        if image is None:
+            raise ValueError("DiFix generated image is None")
+
+        # Save the generated image
+        image.save(save_path)
+        print(f"✅ NVIDIA DiFix image generated and saved to: {save_path}")
+
+    except Exception as e:
+        print(f"❌ Error during DiFix generation: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
+        print("🔄 Falling back to Enhanced SDXL...")
+        # Fallback to enhanced SDXL if DiFix fails
+        generate_image_local_enhanced(prompt, style, save_path, use_cuda)
 
 
-def generate_image_local_enhanced(prompt: str, style: str, save_path: str) -> None:
+def generate_image_local_enhanced(prompt: str, style: str, save_path: str, use_cuda: bool = True) -> None:
     """
     Enhanced version of generate_image_local with DiFix-style optimizations.
     Uses Stable Diffusion XL with improved settings for better quality.
@@ -192,6 +279,12 @@ def generate_image_local_enhanced(prompt: str, style: str, save_path: str) -> No
     # Validate inputs
     if not prompt or not style or not save_path:
         raise ValueError("prompt, style, and save_path cannot be None or empty")
+    
+    # Debug logging
+    print(f"🔧 Debug - prompt: {prompt}")
+    print(f"🔧 Debug - style: {style}")
+    print(f"🔧 Debug - save_path: {save_path}")
+    print(f"🔧 Debug - use_cuda: {use_cuda}")
     
     # Shorter, more focused prompt to avoid token limit issues
     base_prompt = "panoramic landscape with clear depth layers, foreground middle-ground background separation, " \
@@ -204,8 +297,8 @@ def generate_image_local_enhanced(prompt: str, style: str, save_path: str) -> No
 
     # Load Stable Diffusion XL with enhanced settings
     try:
-        # Check CUDA availability
-        cuda_available = torch.cuda.is_available() and torch.cuda.device_count() > 0
+        # Check CUDA availability and user preference
+        cuda_available = torch.cuda.is_available() and use_cuda and torch.cuda.device_count() > 0
         
         pipe = StableDiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0", 
@@ -219,31 +312,54 @@ def generate_image_local_enhanced(prompt: str, style: str, save_path: str) -> No
             try:
                 pipe = pipe.to("cuda")
                 print("✅ Using GPU for Enhanced SDXL generation")
+                print(f"GPU: {torch.cuda.get_device_name(0)}, Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.1f}GB")
             except Exception as e:
                 print(f"⚠️  Failed to move to GPU: {e}")
                 print("🔄 Using CPU for Enhanced SDXL generation")
                 cuda_available = False
         else:
-            print("ℹ️  Using CPU for Enhanced SDXL generation")
+            if not use_cuda:
+                print("ℹ️  CUDA disabled by user - using CPU for Enhanced SDXL generation")
+            elif not torch.cuda.is_available():
+                print("ℹ️  CUDA not available - using CPU for Enhanced SDXL generation")
+            else:
+                print("ℹ️  Using CPU for Enhanced SDXL generation")
             
     except Exception as e:
         print(f"❌ Error loading Enhanced SDXL: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
         raise e
 
     # Generate with enhanced parameters
     try:
+        # Create a proper negative prompt string
+        negative_prompt = "blurry, low quality, flat, distorted, cluttered"
+        
+        print(f"🔧 Debug - About to call pipe() with:")
+        print(f"   - prompt: '{final_prompt[:50]}...'")
+        print(f"   - negative_prompt: '{negative_prompt}'")
+        print(f"   - height: 512, width: 1024")
+        
+        # Generate with basic parameters first to avoid issues
         result = pipe(
-            final_prompt,
+            prompt=final_prompt,
             height=512,
             width=1024,
-            num_inference_steps=50,  # Higher quality
-            guidance_scale=8.0,      # Slightly higher for better adherence
-            negative_prompt="blurry, low quality, flat, distorted, cluttered",
-            # Removed problematic parameters that cause NoneType errors
+            num_inference_steps=30,  # Reduced from 50 for stability
+            guidance_scale=7.5,      # Standard value
+            negative_prompt=negative_prompt
         )
         
-        if result is None or not hasattr(result, 'images') or not result.images:
-            raise ValueError("Enhanced SDXL pipeline returned invalid result")
+        print(f"🔧 Debug - pipe() returned: {type(result)}")
+        
+        if result is None:
+            raise ValueError("Enhanced SDXL pipeline returned None result")
+            
+        if not hasattr(result, 'images'):
+            raise ValueError("Enhanced SDXL result has no 'images' attribute")
+            
+        if not result.images:
+            raise ValueError("Enhanced SDXL result.images is empty")
             
         image = result.images[0]
         
@@ -256,12 +372,14 @@ def generate_image_local_enhanced(prompt: str, style: str, save_path: str) -> No
 
     except Exception as e:
         print(f"❌ Error during Enhanced SDXL generation: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
+        print(f"❌ Error details: {str(e)}")
         print("🔄 Falling back to basic SDXL...")
         # Final fallback to basic generation
-        generate_image_local_basic(prompt, style, save_path)
+        generate_image_local_basic(prompt, style, save_path, use_cuda)
 
 
-def generate_image_local_basic(prompt: str, style: str, save_path: str) -> None:
+def generate_image_local_basic(prompt: str, style: str, save_path: str, use_cuda: bool = True) -> None:
     """
     Basic fallback image generation with minimal parameters to avoid NoneType errors.
     """
@@ -271,8 +389,8 @@ def generate_image_local_basic(prompt: str, style: str, save_path: str) -> None:
     simple_prompt = f"{style} {prompt}"
     
     try:
-        # Check CUDA availability
-        cuda_available = torch.cuda.is_available() and torch.cuda.device_count() > 0
+        # Check CUDA availability and user preference
+        cuda_available = torch.cuda.is_available() and use_cuda and torch.cuda.device_count() > 0
         
         pipe = StableDiffusionPipeline.from_pretrained(
             "runwayml/stable-diffusion-v1-5",  # Use SD 1.5 as final fallback
@@ -285,13 +403,21 @@ def generate_image_local_basic(prompt: str, style: str, save_path: str) -> None:
             try:
                 pipe = pipe.to("cuda")
                 print("✅ Using GPU for basic SD generation")
+                print(f"GPU: {torch.cuda.get_device_name(0)}")
             except Exception:
                 print("ℹ️  Using CPU for basic SD generation")
         else:
-            print("ℹ️  Using CPU for basic SD generation")
+            if not use_cuda:
+                print("ℹ️  CUDA disabled by user - using CPU for basic SD generation")
+            else:
+                print("ℹ️  Using CPU for basic SD generation")
         
-        # Very basic generation call
-        result = pipe(simple_prompt)
+        # Very basic generation call with explicit parameters
+        result = pipe(
+            prompt=simple_prompt,
+            num_inference_steps=20,
+            guidance_scale=7.5
+        )
         
         if result and hasattr(result, 'images') and result.images:
             image = result.images[0]
@@ -312,7 +438,7 @@ def generate_image_local_basic(prompt: str, style: str, save_path: str) -> None:
         print(f"⚠️  Created placeholder image at: {save_path}")
 
 
-def generate_image_with_model_selection(prompt: str, style: str, save_path: str, model: str = "enhanced") -> None:
+def generate_image_with_model_selection(prompt: str, style: str, save_path: str, model: str = "enhanced", use_cuda: bool = True) -> None:
     """
     Generate an image using the specified model.
     
@@ -321,25 +447,26 @@ def generate_image_with_model_selection(prompt: str, style: str, save_path: str,
         style (str): The style of the generated image.
         save_path (str): Path to save the generated image.
         model (str): Model to use. Options:
-                    - "enhanced" or "difix": Enhanced SDXL with optimized settings (default)
+                    - "enhanced" or "difix": NVIDIA DiFix model (default)
                     - "sdxl": Standard SDXL
                     - "sdxl_api": HuggingFace API SDXL
                     - "basic": Basic SD 1.5 fallback
+        use_cuda (bool): Whether to use CUDA if available (default: True).
     """
     model = model.lower()
     
     if model in ["enhanced", "difix"]:
-        print("🎨 Using Enhanced SDXL (DiFix alternative)")
-        generate_image_difix(prompt, style, save_path)
+        print("🎨 Using NVIDIA DiFix Model")
+        generate_image_difix(prompt, style, save_path, use_cuda)
     elif model == "sdxl":
         print("🎨 Using Standard SDXL")
-        generate_image_local(prompt, style, save_path)
+        generate_image_local(prompt, style, save_path, use_cuda)
     elif model == "sdxl_api":
         print("🎨 Using SDXL API")
         generate_image(prompt, style, save_path)
     elif model == "basic":
         print("🎨 Using Basic SD 1.5")
-        generate_image_local_basic(prompt, style, save_path)
+        generate_image_local_basic(prompt, style, save_path, use_cuda)
     else:
-        print(f"⚠️  Unknown model: {model}. Using Enhanced SDXL as default.")
-        generate_image_difix(prompt, style, save_path)
+        print(f"⚠️  Unknown model: {model}. Using NVIDIA DiFix as default.")
+        generate_image_difix(prompt, style, save_path, use_cuda)

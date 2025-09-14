@@ -214,7 +214,7 @@ def visualize_depth_map(depth_map_normalized):
     plt.close(fig)
     
 
-def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
+def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt", use_cuda=True):
     """
     Main function to process the image and generate the 3D mesh.
     
@@ -223,10 +223,14 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
         output_mesh_path (str): Path to save the output mesh (e.g., 'output_mesh.gltf').
         model_type (str): Type of MiDaS model ('DPT_Large', 'DPT_Hybrid', 'MiDaS_small').
         model_path (str): Path to the downloaded model weights.
+        use_cuda (bool): Whether to use CUDA if available (default: True).
     """
-    # Check if CUDA is available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    # Check if CUDA is available and requested
+    cuda_available = torch.cuda.is_available() and use_cuda
+    device = torch.device("cuda" if cuda_available else "cpu")
+    print(f"MiDaS using device: {device}")
+    if cuda_available:
+        print(f"GPU: {torch.cuda.get_device_name(0)}, Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.1f}GB")
 
     # Load MiDaS model with local weights
     midas, transform = load_midas_model(model_type=model_type, model_path=model_path)
