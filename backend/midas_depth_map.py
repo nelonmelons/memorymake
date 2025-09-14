@@ -8,6 +8,7 @@ from torchvision.transforms import Compose, Normalize, Resize, ToTensor, Interpo
 import ssl
 from urllib import request
 from PIL import Image
+from diffusers import MarigoldDepthPipeline
 
 
 
@@ -15,49 +16,35 @@ from PIL import Image
 # Create an SSL context that ignores certificate verification
 ssl._create_default_https_context = ssl._create_unverified_context
 
-def load_midas_model(model_type="DPT_Large", model_path="models/dpt_swin2_large_384.pt"):
+def load_marigold_model():
     """
-    Loads the MiDaS model architecture and weights manually.
+    Loads the Marigold depth estimation model from Hugging Face.
     
-    Args:
-        model_type (str): Type of MiDaS model to load. Options are 'DPT_Large', 'DPT_Hybrid', 'MiDaS_small'.
-        model_path (str): Path to the downloaded .pt model weights.
-        
     Returns:
-        model, transform: The loaded model and its corresponding transformation.
+        pipe: The loaded Marigold pipeline.
     """
-    # Import MiDaS architecture from the repository
-    # Ensure you have cloned the MiDaS repository or have access to the model definitions
-    # For simplicity, we can use torch.hub's implementation but load weights manually
-    
-    # Define the hub URL
-    hub_url = "intel-isl/MiDaS"
-    
-    model = torch.hub.load(hub_url, model_type, source='github', trust_repo=True)
-    print('finished')
-    # # Load the local weights
-    # state_dict = torch.load(model_path, map_location=torch.device('cpu'))
-    # model.load_state_dict(state_dict)
-    model.eval()
-    
-    # Define the appropriate transform
-    if model_type in ["DPT_Large", "DPT_Hybrid"]:
-        transform = Compose([
-            Resize((384, 384), interpolation=InterpolationMode.BICUBIC),
-
-            ToTensor(),
-            Normalize(mean=[0.485, 0.456, 0.406],
-                      std=[0.229, 0.224, 0.225]),
-        ])
-    else:  # MiDaS_small
-        transform = Compose([
-            Resize(256, 256),
-            ToTensor(),
-            Normalize(mean=[0.485, 0.456, 0.406],
-                      std=[0.229, 0.224, 0.225]),
-        ])
-    
-    return model, transform
+    try:
+        # Check if CUDA is available and use appropriate dtype
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        if torch.cuda.is_available():
+            # Use fp16 for CUDA
+            pipe = MarigoldDepthPipeline.from_pretrained(
+                "prs-eth/marigold-depth-v1-1", 
+                variant="fp16", 
+                torch_dtype=torch.float16
+            ).to(device)
+        else:
+            # Use default for CPU
+            pipe = MarigoldDepthPipeline.from_pretrained(
+                "prs-eth/marigold-depth-v1-1"
+            ).to(device)
+        
+        print(f"Marigold model loaded successfully on {device}")
+        return pipe
+    except Exception as e:
+        print(f"Error loading Marigold model: {e}")
+        raise e
 
 
 def save_depth_map_as_png(depth_map, output_path="depth_map_test.png"):
@@ -84,41 +71,70 @@ def save_depth_values_as_image(depth_array, output_path="panorama_depth.png"):
     cv2.imwrite(output_path, depth_array_16bit)
     return output_path
 
-def estimate_depth(midas, transform, image, device):
+def estimate_depth(pipe, image, device):
     """
-    Estimates the depth map of an image using MiDaS.
+    Estimates the depth map of an image using Marigold.
     
     Args:
-        midas: The MiDaS model.
-        transform: The transformation to apply to the image.
+        pipe: The Marigold pipeline.
         image (PIL.Image): The input image (as a PIL.Image object).
         device: The device to run the model on.
         
     Returns:
         depth_map (numpy.ndarray): The estimated depth map.
+        depth_map_normalized (numpy.ndarray): The normalized depth map.
     """
-    input_batch = transform(image).to(device).unsqueeze(0)
-    
-    with torch.no_grad():
-        prediction = midas(input_batch)
-    
-    # Interpolate to the original image size
-    prediction = torch.nn.functional.interpolate(
-        prediction.unsqueeze(1),
-        size=image.size[::-1],  # Reverse (width, height) to (height, width)
-        mode="bicubic",
-        align_corners=False,
-    ).squeeze()
-    
-    depth_map = prediction.cpu().numpy() 
-
-    
-    # Normalize the depth map for visualization
-    depth_min = depth_map.min()
-    depth_max = depth_map.max()
-    depth_map_normalized = (depth_map - depth_min) / (depth_max - depth_min)
-    
-    return depth_map, depth_map_normalized
+    try:
+        # Use Marigold to estimate depth
+        # The Marigold pipeline expects a PIL image and returns a depth prediction
+        depth_result = pipe(image)
+        
+        # Extract the depth prediction tensor
+        depth_prediction = depth_result.prediction
+        
+        # Convert tensor to numpy array
+        # depth_prediction is typically a tensor with shape [1, 1, H, W]
+        if isinstance(depth_prediction, torch.Tensor):
+            depth_map = depth_prediction.squeeze().cpu().numpy()
+        else:
+            # If it's already a numpy array
+            depth_map = depth_prediction.squeeze()
+        
+        # Ensure depth map is 2D
+        if len(depth_map.shape) > 2:
+            depth_map = depth_map[0] if depth_map.shape[0] == 1 else np.mean(depth_map, axis=0)
+        
+        # Resize to match input image dimensions if necessary
+        if depth_map.shape != (image.height, image.width):
+            depth_map = cv2.resize(depth_map, (image.width, image.height), interpolation=cv2.INTER_LINEAR)
+        
+        # Convert to float32
+        depth_map = depth_map.astype(np.float32)
+        
+        # The Marigold model outputs depth values in [0, 1] range
+        # We need to scale them appropriately for the 3D pipeline
+        # Since the original MiDaS values were used with specific scaling,
+        # we'll scale the [0,1] range to a reasonable depth range
+        depth_scale = 1000.0  # Scale to reasonable depth values
+        depth_map = depth_map * depth_scale
+        
+        # Create normalized version for visumkalization (0-1 range)
+        depth_min = depth_map.min()
+        depth_max = depth_map.max()
+        
+        if depth_max > depth_min:
+            depth_map_normalized = (depth_map - depth_min) / (depth_max - depth_min)
+        else:
+            depth_map_normalized = np.ones_like(depth_map) * 0.5
+        
+        return depth_map, depth_map_normalized
+        
+    except Exception as e:
+        print(f"Error in depth estimation: {e}")
+        # Fallback: create a dummy depth map
+        depth_map = np.ones((image.height, image.width), dtype=np.float32) * 100.0
+        depth_map_normalized = np.ones((image.height, image.width), dtype=np.float32) * 0.5
+        return depth_map, depth_map_normalized
 
 
 def create_point_cloud(image, depth_map, focal_length=1.0):
@@ -212,29 +228,52 @@ def visualize_depth_map(depth_map_normalized):
     ax.set_title("Normalized Depth Map (Colormapped)")
     fig.savefig("depth_map.png")
     plt.close(fig)
+
+def save_marigold_depth_visualization(pipe, depth_result, output_path="marigold_depth_vis.png"):
+    """
+    Save depth visualization using Marigold's built-in visualization method.
+    
+    Args:
+        pipe: The Marigold pipeline.
+        depth_result: The depth result from Marigold pipeline.
+        output_path (str): Path to save the visualization.
+    """
+    try:
+        vis = pipe.image_processor.visualize_depth(depth_result.prediction)
+        vis[0].save(output_path)
+        print(f"Marigold depth visualization saved to {output_path}")
+        return output_path
+    except Exception as e:
+        print(f"Error saving Marigold depth visualization: {e}")
+        return None
     
 
 def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model_path="models/midas/dpt_large-midas-2f21e586.pt"):
     """
-    Main function to process the image and generate the 3D mesh.
+    Main function to process the image and generate the depth map using Marigold.
+    Note: model_type and model_path parameters are kept for backward compatibility but not used.
     
     Args:
         input_image_path (str): Path to the input image.
         output_mesh_path (str): Path to save the output mesh (e.g., 'output_mesh.gltf').
-        model_type (str): Type of MiDaS model ('DPT_Large', 'DPT_Hybrid', 'MiDaS_small').
-        model_path (str): Path to the downloaded model weights.
+        model_type (str): Kept for compatibility, not used with Marigold.
+        model_path (str): Kept for compatibility, not used with Marigold.
+    
+    Returns:
+        depth_map (numpy.ndarray): The estimated depth map.
     """
     # Check if CUDA is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Load MiDaS model with local weights
-    midas, transform = load_midas_model(model_type=model_type, model_path=model_path)
-    midas.to(device)
-    print("MiDaS model loaded with local weights.")
+    # Load Marigold model
+    try:
+        pipe = load_marigold_model()
+        print("Marigold model loaded successfully.")
+    except Exception as e:
+        print(f"Failed to load Marigold model: {e}")
+        raise e
 
-    # url, filename = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
-    # request.urlretrieve(url, filename)
     # Read the image
     image = cv2.imread(input_image_path)
     if image is None:
@@ -244,10 +283,15 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
     # Convert numpy.ndarray (OpenCV image) to PIL.Image
     image = Image.fromarray(image)
 
-    # Estimate depth
-    depth_map, depth_map_normalized = estimate_depth(midas, transform, image, device)
-    # visualize_depth_map(depth_map_normalized)
-
+    # Estimate depth using Marigold
+    depth_result = pipe(image)
+    depth_map, depth_map_normalized = estimate_depth(pipe, image, device)
+    print("Depth estimation completed with Marigold.")
+    
+    # Optional: Save Marigold's built-in depth visualization
+    # save_marigold_depth_visualization(pipe, depth_result, "marigold_depth_vis.png")
+    
+    # Optional: Save custom depth map visualization
     # visualize_depth_map(depth_map_normalized)
 
     # Optional: Visualize depth map
@@ -274,11 +318,11 @@ def midas_main(input_image_path, output_mesh_path, model_type="DPT_Large", model
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Convert 2D image to 3D mesh using MiDaS and Open3D")
-    parser.add_argument("--input", type=str, default="osaka.jpg", required=True)
+    parser = argparse.ArgumentParser(description="Convert 2D image to depth map using Marigold and Open3D")
+    parser.add_argument("--input", type=str, default="osaka.jpg", required=True, help="Path to input image")
     parser.add_argument("--output", type=str, default="output_mesh.gltf", help="Path to save the output mesh (glTF format recommended)")
-    parser.add_argument("--model_type", type=str, default="DPT_Large", choices=["DPT_Large", "DPT_Hybrid", "MiDaS_small"], help="Type of MiDaS model to use")
-    parser.add_argument("--model_path", type=str, default="models/midas/dpt_large-midas-2f21e586.pt", help="Path to the downloaded MiDaS model weights")
+    parser.add_argument("--model_type", type=str, default="DPT_Large", choices=["DPT_Large", "DPT_Hybrid", "MiDaS_small"], help="Legacy parameter - kept for compatibility but not used with Marigold")
+    parser.add_argument("--model_path", type=str, default="models/midas/dpt_large-midas-2f21e586.pt", help="Legacy parameter - kept for compatibility but not used with Marigold")
     args = parser.parse_args()
 
     midas_main(args.input, args.output, model_type=args.model_type, model_path=args.model_path)

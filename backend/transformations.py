@@ -22,6 +22,19 @@ def root_scaling(depth_raw, steepness=10):
 
     return depth_raw * scale2
 
+def linear_depth_scaling(depth_raw, scale_factor=1.0):
+    """
+    Apply linear scaling to depth values for even distribution.
+    
+    Args:
+        depth_raw (np.ndarray): The raw depth values (2D array).
+        scale_factor (float): Linear scaling factor.
+        
+    Returns:
+        np.ndarray: The linearly scaled depth values.
+    """
+    return depth_raw * scale_factor
+
 def fisheye_distortion(image, k1=0.00001, k2=0.000001):
     """
     Usage:

@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 def cylindrical_projection(color_image_path, depth_image_path,
-                          vertical_scale=1.0, depth_scale_factor=1.0):
+                          vertical_scale=1.0, depth_scale_factor=7.0):
     """
     Convert a panoramic color + depth image into a point cloud wrapped in cylindrical space.
 
@@ -55,7 +55,8 @@ def cylindrical_projection(color_image_path, depth_image_path,
             Z = r * np.cos(theta)  # forward-back
 
             # For vertical, shift row so the middle is Y=0
-            y_prime = y - half_h
+            # Fix Y coordinate - flip to match 3D coordinate system
+            y_prime = half_h - y  # Flip Y coordinate 
             Y = y_prime * vertical_scale
 
             points.append([X, Y, Z])

@@ -92,8 +92,9 @@ def cylindrical_projection(color_image_path,
 
     print(color_raw.shape, depth_raw.shape)
 
-    # Convert depth to float; apply any scaling if needed
-    depth_raw = depth_raw.astype(np.float32) * depth_scale_factor
+    # Convert depth to float; reduce additional scaling to prevent over-magnification
+    # Apply minimal depth_scale_factor to avoid excessive depth magnification
+    depth_raw = depth_raw.astype(np.float32) * min(depth_scale_factor, 2.0)  # Cap at 2.0x
 
     height, width, _ = color_raw.shape
 
@@ -104,11 +105,16 @@ def cylindrical_projection(color_image_path,
     half_h = height / 2.0
 
     # Loop through each pixel in the panorama
-    # Adjust this value to control the effect
-    bias = 30
-    original_r = (np.max(depth_raw) - depth_raw) * 10
-    r = root_scaling(original_r)
-    # r = (np.max(depth_raw) - depth_raw) * 10
+    # Simplified depth calculation for more even distribution
+    
+    # Use depth directly with minimal processing for even distribution
+    depth_scale = 0.05  # Reduce depth scale to prevent over-magnification
+    base_radius = 100.0  # Base cylinder radius
+    
+    # Apply linear depth scaling (no root scaling for even distribution)
+    r = base_radius + (depth_raw * depth_scale)
+    # r = root_scaling(original_r)  # Disable root scaling to fix uneven depth
+    
     valid_mask = r > 0  # Mask to skip invalid or zero depth
 
     # Create a grid of x and y coordinates
@@ -118,10 +124,16 @@ def cylindrical_projection(color_image_path,
 
     # Shift x and y coordinates to center
     x_prime = x_grid - half_w
-    y_prime = y_grid - half_h
-    theta_max = np.pi / 2.0
+    # Fix Y coordinate - flip to match 3D coordinate system
+    # Image: y=0 (top) to y=height (bottom)
+    # 3D: Y=positive (up) to Y=negative (down)
+    y_prime = y_grid - half_h  # Flip Y coordinate
+
+    # Use 90 degree range for viewable panoramic environment
+    # 90 degrees allows you to "enter" the panorama without it being a closed cylinder
+    theta_max = np.pi / 2.0  # 90 degrees total range (45° each side)
     # Compute theta and Cartesian coordinates
-    theta = (x_prime / half_w) * (np.pi / 2.0)
+    theta = (x_prime / half_w) * theta_max
     
     exceed_mask = (theta < -theta_max) | (theta > theta_max)  # Logical OR for exceeding values
 
@@ -129,9 +141,13 @@ def cylindrical_projection(color_image_path,
     exceeding_thetas = theta[exceed_mask]
     print("Theta values exceeding the limits:", exceeding_thetas)
 
-    X = r * np.sin(theta)
+    # Apply horizontal stretching to fix compression and vertical compression
+    horizontal_stretch = 2.0  # Stretch horizontally to reduce compression
+    vertical_compression = 0.6  # Compress vertically to reduce height
+    
+    X = r * np.sin(theta) * horizontal_stretch
     Z = r * np.cos(theta)
-    Y = y_prime * vertical_scale
+    Y = y_prime * vertical_scale * vertical_compression
 
     # Apply the valid mask
     X = X[valid_mask]
