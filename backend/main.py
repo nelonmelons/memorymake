@@ -73,22 +73,25 @@ async def generate_from_prompt(obj: dict, background_tasks: BackgroundTasks = No
     try:
         prompt = obj.get("prompt")
         style = obj.get("style").lower()
+        model = obj.get("model", "difix").lower()  # Default to DiFix model
+        
         if not prompt or not style:
             return {"error": "Prompt and style are required"}, 400
+
+        # Validate model parameter
+        valid_models = ["difix", "sdxl", "sdxl_api"]
+        if model not in valid_models:
+            return {"error": f"Invalid model. Choose from: {valid_models}"}, 400
 
         # Generate file paths
         file_id = os.urandom(4).hex()
         save_image_path = f"uploads/generated_{file_id}.png"
         output_filename = f"rendered/generated_{file_id}.obj"
 
-        # NOTE: This uses the Hugging Face Inference API, which is not provided with the code
-        stable_diffusion.generate_image(prompt, style, save_image_path)
-
-        # TODO: If you wish to run the generative model locally,
-        # uncomment the line below and comment the above line
-        # stable_diffusion.generate_image_local(prompt, style, save_image_path)
-
-        print(f"Image saved at: {save_image_path}")
+        # Use the selected model for generation
+        stable_diffusion.generate_image_with_model_selection(prompt, style, save_image_path, model=model)
+        
+        print(f"Image generated using {model.upper()} model and saved at: {save_image_path}")
 
         # Process the image to generate 3D object
         await asyncio.to_thread(open_3d_main, save_image_path, save_path=output_filename, style="photorealistic")

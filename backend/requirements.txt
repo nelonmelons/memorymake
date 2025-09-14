@@ -13,6 +13,10 @@ dash==2.18.2
 dash-core-components==2.0.0
 dash-html-components==2.0.0
 dash-table==5.0.0
+diffusers==0.31.0
+transformers==4.46.3
+accelerate==1.2.1
+safetensors==0.5.2
 fastapi==0.115.7
 fastjsonschema==2.21.1
 filelock==3.17.0
